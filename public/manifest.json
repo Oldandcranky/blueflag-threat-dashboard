@@ -1,6 +1,6 @@
 {
   "name": "BlueFlag Security Threat Dashboard",
-  "short_name": "BlueFlag",
+  "short_name": "BlueFlag Security",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050b14",
