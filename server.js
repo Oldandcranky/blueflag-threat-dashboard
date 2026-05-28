@@ -10,7 +10,7 @@ const app = express();
 const DIR = __dirname;
 
 app.use(express.json());
-app.use(express.static(path.join(DIR, 'public')));
+app.use(express.static(path.join(DIR, 'public'), { etag: false, lastModified: false, setHeaders: res => res.setHeader('Cache-Control', 'no-store') }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // In Docker, persistent data lives in /app/data (volume-mounted from Synology)
