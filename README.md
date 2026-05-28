@@ -52,7 +52,7 @@ node server.js
 
 ## Configuration
 
-Open **Settings** in the app (gear icon, top-right) to configure:
+Open **Settings** in the app (bottom left) to configure:
 
 | Field | Description |
 |---|---|
