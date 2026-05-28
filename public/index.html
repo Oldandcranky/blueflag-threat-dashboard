@@ -257,13 +257,12 @@ body.left-collapsed { grid-template-columns:0px 1fr; }
 }
 .btn-topstop:hover { background:var(--crit); color:white; }
 
-.theme-toggle {
-  display:flex; align-items:center; gap:5px; padding:5px 11px;
-  border-radius:20px; background:var(--surface2); border:1px solid var(--border2);
-  color:var(--text2); font-family:var(--ui); font-size:10px; font-weight:700;
-  cursor:pointer; transition:all .2s; flex-shrink:0;
+.btn-theme {
+  background:none; border:1px solid rgba(255,255,255,.15); border-radius:4px;
+  color:rgba(255,255,255,.45); cursor:pointer; font-size:12px; line-height:1;
+  padding:2px 5px; transition:all .12s; flex-shrink:0;
 }
-.theme-toggle:hover { border-color:var(--accent); color:var(--accent); }
+.btn-theme:hover { border-color:rgba(255,255,255,.4); color:rgba(255,255,255,.85); }
 
 /* Views */
 .right-body  { flex:1; overflow:hidden; display:flex; flex-direction:column; }
@@ -628,7 +627,10 @@ body.left-collapsed { grid-template-columns:0px 1fr; }
     <button class="btn-stop"    id="stopBtn"   onclick="stopRun()">■ Stop</button>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
       <div class="last-run-t" id="lastRunText" style="margin-top:0;">never run</div>
-      <span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.08em;">v1.8.9</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-theme" id="btnTheme" onclick="toggleTheme()" title="Toggle light / dark mode">☀</button>
+        <span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.08em;">v1.9.0</span>
+      </div>
     </div>
   </div>
 </div>
@@ -666,15 +668,6 @@ body.left-collapsed { grid-template-columns:0px 1fr; }
         <div class="set-block">
           <div class="set-title">System Status</div>
           <div id="settingsStats" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
-        </div>
-
-        <div class="set-block">
-          <div class="set-title">Appearance</div>
-          <div style="display:flex;align-items:center;gap:14px;">
-            <button class="theme-toggle" onclick="toggleTheme()" style="font-size:12px;padding:8px 16px;">
-              <span id="themeIcon2">☀</span><span id="themeLabel2">Switch to Light Mode</span>
-            </button>
-          </div>
         </div>
 
         <div class="set-block">
@@ -849,11 +842,8 @@ async function reload() {
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('bf-theme', t);
-  const isDark = t === 'dark';
-  const ti2 = document.getElementById('themeIcon2');
-  const tl2 = document.getElementById('themeLabel2');
-  if (ti2) ti2.textContent  = isDark ? '☀' : '☾';
-  if (tl2) tl2.textContent = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+  const btn = document.getElementById('btnTheme');
+  if (btn) btn.textContent = t === 'dark' ? '☀' : '☾';
 }
 function toggleTheme() {
   applyTheme((document.documentElement.getAttribute('data-theme')||'dark')==='dark' ? 'light' : 'dark');
