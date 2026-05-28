@@ -1,0 +1,67 @@
+{
+  "_note": "Copy this file to config.json and fill in your credentials via the Settings page",
+  "staleDays": 30,
+  "runTime": "07:00",
+  "claudeApiKey": "",
+  "intelUrl": "",
+  "defaultUsername": "",
+  "defaultPassword": "",
+  "tenants": [
+    {
+      "id": "r1rcm",
+      "name": "R1 RCM",
+      "url": "https://r1rcm.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "apex",
+      "name": "Apex",
+      "url": "https://apex.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "marelli",
+      "name": "Marelli",
+      "url": "https://marelli.eu.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "pearson",
+      "name": "Pearson",
+      "url": "https://pearson.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "leprino",
+      "name": "Leprino",
+      "url": "https://leprino.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "cobank",
+      "name": "CoBank",
+      "url": "https://cobank.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "hear",
+      "name": "HEAR.com",
+      "url": "https://hear.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    }
+  ]
+}
