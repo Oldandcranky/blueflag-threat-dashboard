@@ -1,0 +1,35 @@
+{
+  "_note": "Copy this file to config.json and fill in your credentials via the Settings page",
+  "staleDays": 30,
+  "runTime": "07:00",
+  "claudeApiKey": "",
+  "intelUrl": "",
+  "defaultUsername": "",
+  "defaultPassword": "",
+  "tenants": [
+    {
+      "id": "acme",
+      "name": "Acme Corp",
+      "url": "https://acme.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "globex",
+      "name": "Globex",
+      "url": "https://globex.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    },
+    {
+      "id": "initech",
+      "name": "Initech",
+      "url": "https://initech.blueflagsecurity.com",
+      "contactName": null,
+      "username": null,
+      "password": null
+    }
+  ]
+}

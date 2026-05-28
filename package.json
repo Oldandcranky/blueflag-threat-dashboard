@@ -1,0 +1,14 @@
+{
+  "name": "blueflag-monitor",
+  "version": "1.0.0",
+  "description": "Daily BlueFlag tenant health scraper + delta report",
+  "scripts": {
+    "start": "node run.js",
+    "refresh": "node run.js --refresh"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "node-cron": "^4.2.1",
+    "playwright": "^1.44.0"
+  }
+}
