@@ -1926,12 +1926,12 @@ function renderSankey() {
   const H = Math.max(180, Math.min(360, tenantNames.length * 44 + 40));
   container.innerHTML = '';
 
-  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H).style('overflow', 'visible');
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
 
   const layout = d3.sankey()
     .nodeWidth(12)
     .nodePadding(10)
-    .extent([[1, 6], [W - 1, H - 6]]);
+    .extent([[1, 6], [W - 70, H - 6]]);
 
   const { nodes: ns, links: ls } = layout({ nodes: nodes.map(d => ({...d})), links: links.map(d => ({...d})) });
 
