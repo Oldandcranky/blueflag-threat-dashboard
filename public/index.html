@@ -1926,7 +1926,7 @@ function renderSankey() {
   const H = Math.max(180, Math.min(360, tenantNames.length * 44 + 40));
   container.innerHTML = '';
 
-  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H).style('overflow', 'visible');
 
   const layout = d3.sankey()
     .nodeWidth(12)
