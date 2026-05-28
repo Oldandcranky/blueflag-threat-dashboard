@@ -68,24 +68,6 @@ Per-tenant credentials can be set individually in Settings and override the defa
 
 ---
 
-## Tenants
-
-Pre-configured out of the box:
-
-| Tenant | URL |
-|---|---|
-| R1 RCM | r1rcm.blueflagsecurity.com |
-| Apex | apex.blueflagsecurity.com |
-| Marelli | marelli.eu.blueflagsecurity.com |
-| Pearson | pearson.blueflagsecurity.com |
-| Leprino | leprino.blueflagsecurity.com |
-| CoBank | cobank.blueflagsecurity.com |
-| HEAR.com | hear.blueflagsecurity.com |
-
-Add or remove tenants via Settings.
-
----
-
 ## Project layout
 
 ```
