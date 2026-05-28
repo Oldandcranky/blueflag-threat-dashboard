@@ -380,6 +380,7 @@ Rules:
     logAI(`Model: claude-sonnet-4-20250514`);
     logAI(`Context: ${actorLines.length} actor(s), ${intelHook ? 'intel hook loaded' : 'no intel'}`);
     logAI(`Sending request to Anthropic API...`);
+    logAI(`--- PROMPT SENT ---\n${prompt}\n--- END PROMPT ---`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -407,6 +408,7 @@ Rules:
     const subject = subjIdx>=0 ? lines[subjIdx].replace('Subject:','').trim() : '';
     const body    = lines.slice(subjIdx>=0?subjIdx+1:0).join('\n').trim();
 
+    logAI(`--- RESPONSE RECEIVED ---\n${text}\n--- END RESPONSE ---`);
     logAI(`✓ Email draft generated for ${tenant.name}`);
     res.json({ subject, body });
   } catch(e) {
