@@ -585,8 +585,6 @@ body.left-collapsed { grid-template-columns:0px 1fr; }
 .dash-run-btn { padding:10px 28px; background:var(--accent); color:#050b14; border:none; border-radius:6px; font-family:var(--ui); font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; box-shadow:0 2px 12px var(--accent-glow); }
 .dash-run-btn:hover { filter:brightness(1.1); }
 /* ── Sparkline ── */
-.sparkline { display:inline-block; vertical-align:middle; margin-left:10px; }
-.sparkline polyline { fill:none; stroke:var(--accent); stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
 
 .pq-search {
   width:100%; background:var(--surface2); border:1px solid var(--border);
@@ -835,7 +833,6 @@ async function reload() {
   S.config = await cr.json();
   S.snaps  = await sr.json();
   try { S.intel = await ir.json(); } catch {}
-  saveScoreHistory();
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
@@ -1180,9 +1177,8 @@ function renderTenantDetail(id) {
 
   const score = priorityScore(snap);
   const breakdown = snap ? priorityBreakdown(snap) : '';
-  const spark = sparklineSVG(getScoreHistory(id));
   const scoreRow = score > 0 && breakdown
-    ? `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:9px;padding-top:9px;border-top:1px solid var(--border);display:flex;align-items:center;gap:0;">Score ${score} — ${breakdown}<span class="score-info" data-tip="Freshness\n  active today  +30\n  1–3 days       +20\n  4–7 days       +10\n\nDetections\n  critical ×8 · other ×3\n\nClone spikes\n  >1000%  +60 · >500%  +35 · >100%  +15\n\nRisk exposure\n  critical ×0.3 · high ×0.08">ⓘ</span>${spark}</div>`
+    ? `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:9px;padding-top:9px;border-top:1px solid var(--border);display:flex;align-items:center;gap:0;">Score ${score} — ${breakdown}<span class="score-info" data-tip="Freshness\n  active today  +30\n  1–3 days       +20\n  4–7 days       +10\n\nDetections\n  critical ×8 · other ×3\n\nClone spikes\n  >1000%  +60 · >500%  +35 · >100%  +15\n\nRisk exposure\n  critical ×0.3 · high ×0.08">ⓘ</span></div>`
     : '';
   const statusBody = snap
     ? (deltaBarHTML(delta) || '') + scoreRow
@@ -1815,39 +1811,6 @@ function topFindingHTML(snap) {
   </div>`;
 }
 
-// ── Score History (localStorage) ──────────────────────────────────────────────
-function saveScoreHistory() {
-  if (!S.snaps || !S.config?.tenants) return;
-  const hist = JSON.parse(localStorage.getItem('bf-score-history') || '{}');
-  const now = new Date().toISOString();
-  for (const t of (S.config.tenants || [])) {
-    const score = priorityScore(S.snaps[t.id]);
-    if (score <= 0) continue;
-    if (!hist[t.id]) hist[t.id] = [];
-    const last = hist[t.id].at(-1);
-    if (last && last.s === score && (Date.now() - new Date(last.t)) < 3600000) continue;
-    hist[t.id].push({ s: score, t: now });
-    if (hist[t.id].length > 30) hist[t.id] = hist[t.id].slice(-30);
-  }
-  localStorage.setItem('bf-score-history', JSON.stringify(hist));
-}
-
-function getScoreHistory(id) {
-  const hist = JSON.parse(localStorage.getItem('bf-score-history') || '{}');
-  return (hist[id] || []).slice(-12);
-}
-
-function sparklineSVG(points) {
-  if (!points || points.length < 2) return '';
-  const scores = points.map(p => p.s);
-  const min = Math.min(...scores), max = Math.max(...scores);
-  const range = max - min || 1;
-  const w = 72, h = 20, pad = 2;
-  const xs = scores.map((_, i) => pad + (i / (scores.length - 1)) * (w - pad * 2));
-  const ys = scores.map(s => pad + (1 - (s - min) / range) * (h - pad * 2));
-  const pts = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-  return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}"/></svg>`;
-}
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function renderDashboard() {
@@ -1869,12 +1832,10 @@ function renderDashboard() {
     const days = daysSince(snap);
     const dot = dotClass(days);
     const arrow = trendArrow(snap);
-    const spark = sparklineSVG(getScoreHistory(t.id));
     return `<div class="dash-top5-row" onclick="selectView('tenant','${t.id}')">
       <span class="dash-rank">#${i+1}</span>
       <span class="dash-dot pq-dot ${dot}"></span>
       <span class="dash-name">${esc(t.name)}</span>
-      ${spark}
       ${arrow === '↑' ? '<span class="trend-up">↑</span>' : arrow === '↓' ? '<span class="trend-down">↓</span>' : ''}
       <span class="dash-score">${score}</span>
     </div>`;
