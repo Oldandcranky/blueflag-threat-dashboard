@@ -232,7 +232,7 @@ app.get('/api/arc/:id', (req, res) => {
   <div class="exec-overview">
     <div class="exec-title">Executive Overview</div>
     <div class="exec-kpis">
-      <div class="exec-kpi"><div class="exec-kpi-val" style="color:${trendColor}">${trend}</div><div class="exec-kpi-label">Risk Trajectory</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-val" style="color:${trendColor}">${trend}</div><div class="exec-kpi-label">Risk Direction</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">${lastCrit.toLocaleString()}</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val">${chronicCount}</div><div class="exec-kpi-label">Persistent Identities</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">${resolvedCount}</div><div class="exec-kpi-label">Resolved This Period</div></div>
@@ -240,7 +240,7 @@ app.get('/api/arc/:id', (req, res) => {
     </div>
     <div class="exec-body">
       <p>Over the past <strong>${engagementDays} days</strong>, BlueFlag Security monitored <strong>${tenant.name}</strong> across <strong>${runs.length} daily scans</strong>.
-      The overall risk posture is <strong style="color:${trendColor}">${trendWord}</strong> — critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastCrit.toLocaleString()})` : ''}.
+      Overall, critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastCrit.toLocaleString()})` : ''}.
       </p>
       ${topThreat ? `<p style="margin-top:10px">The highest-priority finding throughout this engagement has been <strong>${topThreat.name}</strong> (${topThreat.severity}),
       which fired across <strong>${topThreat.runs} of ${runs.length} monitoring runs</strong> with <strong>${topThreat.totalViolations.toLocaleString()} total violations</strong>
@@ -726,7 +726,7 @@ tr:last-child td { border-bottom:none; }
 
 <!-- ── SECTION 1: EXECUTIVE SUMMARY ──────────────────────────────────── -->
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
-<p class="sec-desc">A high-level snapshot of Acme Corp's developer identity risk posture over 30 days of continuous monitoring. This section summarizes the key findings, risk trajectory, and critical actions required.</p>
+<p class="sec-desc">A high-level snapshot of Acme Corp's developer identity risk posture over 30 days of continuous monitoring. This section summarizes the key findings and critical actions required.</p>
 
 <div class="kpi-strip">
   <div class="kpi-tile accent"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
@@ -759,11 +759,11 @@ tr:last-child td { border-bottom:none; }
 
 <!-- ── SECTION 3: EXECUTIVE OVERVIEW ──────────────────────────────────── -->
 <div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Executive Overview</div></div>
-<p class="sec-desc">Risk trajectory, benchmarking against comparable development organizations, and identity distribution breakdown.</p>
+<p class="sec-desc">Risk direction, benchmarking against comparable development organizations, and identity distribution breakdown.</p>
 
 <div class="exec-dark">
-  <div class="exec-dark-title">Risk Trajectory & Context</div>
-  <p>Acme Corp's risk posture is <strong style="color:#f39c12">→ Stable</strong> over the 30-day period — critical findings opened at 312 and closed at 284, a modest improvement of 9% driven by the resolution of 2 identities. However, <strong>8 chronic identities remain fully unaddressed</strong>, meaning the underlying risk exposure has not materially improved. Without intervention, the trajectory will shift to <strong>Worsening</strong> as AI tooling continues to expand its footprint in the codebase.</p>
+  <div class="exec-dark-title">Risk Context</div>
+  <p>Over the 30-day period, critical findings opened at 312 and closed at 284 — a modest 9% improvement driven by the resolution of 2 identities. However, <strong>8 chronic identities remain fully unaddressed</strong>, meaning the underlying risk exposure has not materially improved. Without intervention, the overall picture will worsen as AI tooling continues to expand its footprint in the codebase.</p>
   <p>Three agentic AI service accounts introduced during this period now represent <strong>31% of all critical violations observed</strong> — a proportion that will grow as AI coding tools proliferate across the development team.</p>
 </div>
 
