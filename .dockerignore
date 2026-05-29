@@ -1,0 +1,9 @@
+node_modules
+snapshots
+reports
+debug
+*.log
+config.json
+intel.json
+.git
+data
