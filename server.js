@@ -221,6 +221,37 @@ app.get('/api/arc/:id', (req, res) => {
   const trend = lastCrit < firstCrit * 0.8 ? '↓ Improving' : lastCrit > firstCrit * 1.1 ? '↑ Worsening' : '→ Stable';
   const trendColor = trend.startsWith('↓') ? '#27ae60' : trend.startsWith('↑') ? '#e05252' : '#f39c12';
 
+  // ── Executive Overview ────────────────────────────────────────────────────────
+  const topThreat = topPolicies[0];
+  const chronicCount = chronics.length;
+  const resolvedCount = resolved.length;
+  const critChange = lastCrit - firstCrit;
+  const critChangeStr = critChange > 0 ? `increased by ${critChange}` : critChange < 0 ? `decreased by ${Math.abs(critChange)}` : 'remained stable';
+  const trendWord = trend.startsWith('↓') ? 'improving' : trend.startsWith('↑') ? 'worsening' : 'stable';
+  const execOverviewHTML = `
+  <div class="exec-overview">
+    <div class="exec-title">Executive Overview</div>
+    <div class="exec-kpis">
+      <div class="exec-kpi"><div class="exec-kpi-val" style="color:${trendColor}">${trend}</div><div class="exec-kpi-label">Risk Trajectory</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">${lastCrit.toLocaleString()}</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-val">${chronicCount}</div><div class="exec-kpi-label">Persistent Identities</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">${resolvedCount}</div><div class="exec-kpi-label">Resolved This Period</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-val">${engagementDays}</div><div class="exec-kpi-label">Days Under Monitoring</div></div>
+    </div>
+    <div class="exec-body">
+      <p>Over the past <strong>${engagementDays} days</strong>, BlueFlag Security monitored <strong>${tenant.name}</strong> across <strong>${runs.length} daily scans</strong>.
+      The overall risk posture is <strong style="color:${trendColor}">${trendWord}</strong> — critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastCrit.toLocaleString()})` : ''}.
+      </p>
+      ${topThreat ? `<p style="margin-top:10px">The highest-priority finding throughout this engagement has been <strong>${topThreat.name}</strong> (${topThreat.severity}),
+      which fired across <strong>${topThreat.runs} of ${runs.length} monitoring runs</strong> with <strong>${topThreat.totalViolations.toLocaleString()} total violations</strong>
+      affecting ${topThreat.actors.length} ${topThreat.actors.length === 1 ? 'identity' : 'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
+      ${chronicCount > 0 ? `<p style="margin-top:10px"><strong>${chronicCount} ${chronicCount === 1 ? 'identity has' : 'identities have'} appeared in every monitoring run</strong> —
+      indicating these are not transient issues but structural risks embedded in the development workflow.
+      ${resolvedCount > 0 ? `Positively, <strong>${resolvedCount} ${resolvedCount === 1 ? 'identity was' : 'identities were'} resolved</strong> during this period, demonstrating that remediation is possible when findings are actioned.` : 'No identities have been remediated during this period.'}
+      </p>` : ''}
+    </div>
+  </div>`;
+
   const rowsHTML = runs.map((r,i) => {
     const prev = runs[i-1];
     const critDelta = prev ? r.crit - prev.crit : 0;
@@ -315,6 +346,15 @@ app.get('/api/arc/:id', (req, res) => {
   .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #999; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
   /* Charts */
   #sankeyChart { width: 100%; overflow: visible; }
+  /* Executive Overview */
+  .exec-overview { background:linear-gradient(135deg,#0d1e3c 0%,#1a3a6b 100%); border-radius:10px; padding:24px 28px; margin-bottom:20px; color:#fff; }
+  .exec-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.5); margin-bottom:18px; }
+  .exec-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+  .exec-kpi { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:12px 14px; }
+  .exec-kpi-val { font-size:20px; font-weight:800; font-family:monospace; color:#fff; line-height:1; margin-bottom:4px; }
+  .exec-kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
+  .exec-body { font-size:13px; line-height:1.7; color:rgba(255,255,255,.8); }
+  .exec-body strong { color:#fff; }
 
   /* Table */
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -359,6 +399,8 @@ app.get('/api/arc/:id', (req, res) => {
     <div class="section-title">Identities → Policies → Severity</div>
     <svg id="sankeyChart" height="320"></svg>
   </div>
+
+  ${execOverviewHTML}
 
   <!-- Run history table -->
   <div class="section">
@@ -583,6 +625,14 @@ app.get('/demo-arc', (req, res) => {
   .actor-bar { height:3px; background:#eee; border-radius:2px; margin-top:8px; }
   .actor-bar-fill { height:3px; background:#1550FF; border-radius:2px; }
   #sankeyChart { overflow:visible; }
+  .exec-overview { background:linear-gradient(135deg,#0d1e3c 0%,#1a3a6b 100%); border-radius:10px; padding:24px 28px; margin-bottom:20px; color:#fff; }
+  .exec-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.5); margin-bottom:18px; }
+  .exec-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+  .exec-kpi { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:12px 14px; }
+  .exec-kpi-val { font-size:20px; font-weight:800; font-family:monospace; color:#fff; line-height:1; margin-bottom:4px; }
+  .exec-kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
+  .exec-body { font-size:13px; line-height:1.7; color:rgba(255,255,255,.8); }
+  .exec-body strong { color:#fff; }
   .footer { text-align:center; font-size:11px; color:#bbb; margin-top:32px; padding-top:20px; border-top:1px solid #eee; }
 </style>
 </head><body>
@@ -607,6 +657,23 @@ app.get('/demo-arc', (req, res) => {
 <div class="section">
   <div class="section-title">Identities → Policies → Severity</div>
   <svg id="sankeyChart" height="420"></svg>
+</div>
+
+<!-- Executive Overview -->
+<div class="exec-overview">
+  <div class="exec-title">Executive Overview</div>
+  <div class="exec-kpis">
+    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#f39c12">→ Stable</div><div class="exec-kpi-label">Risk Trajectory</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">401</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-val">8</div><div class="exec-kpi-label">Persistent Identities</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">2</div><div class="exec-kpi-label">Resolved This Period</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-val">30</div><div class="exec-kpi-label">Days Under Monitoring</div></div>
+  </div>
+  <div class="exec-body">
+    <p>Over the past <strong>30 days</strong>, BlueFlag Security monitored <strong>Acme Corp</strong> across <strong>30 daily scans</strong>. The overall risk posture is <strong style="color:#f39c12">stable</strong> — critical findings have remained consistently elevated between 271 and 321, with no significant reduction indicating that underlying issues have not been remediated.</p>
+    <p style="margin-top:10px">The highest-priority finding throughout this engagement has been <strong>Terraform files with critical or high misconfigurations</strong> (Critical), which fired across <strong>all 30 monitoring runs</strong> with <strong>4,821 total violations</strong> affecting 3 identities. This represents a persistent, unresolved exposure in your infrastructure-as-code pipeline that warrants immediate attention.</p>
+    <p style="margin-top:10px"><strong>8 identities have appeared in every monitoring run</strong> — indicating these are not transient issues but structural risks embedded in the development workflow. Of particular concern are three agentic AI service accounts (<strong>copilot-bot</strong>, <strong>claude-code-svc</strong>, <strong>lovable-bot</strong>) that were granted repository access and have since generated <strong>584 unverified configuration changes</strong> across the engagement. AI tooling operating with write access and no CI enforcement represents an emerging and underappreciated attack surface. Positively, <strong>2 identities were resolved</strong> during this period, demonstrating that remediation is possible when findings are actioned.</p>
+  </div>
 </div>
 
 <!-- Run history -->
