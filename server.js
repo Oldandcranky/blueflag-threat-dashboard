@@ -365,16 +365,15 @@ app.post('/api/generate-email', async (req, res) => {
     }
     for (const b of (snap?.behaviors||[])) { if (b.user) _actorSet.add(b.user); }
 
-    const actorFakes = ['dev_alpha','dev_beta','dev_gamma','dev_delta','dev_epsilon','dev_zeta'];
-    const repoFakes  = ['repo_alpha','repo_beta','repo_gamma','repo_delta','repo_epsilon','repo_zeta'];
     const tokenMap   = new Map(); // real → fake
     const reverseMap = new Map(); // fake → real
     const addToken   = (real, fake) => { if (real) { tokenMap.set(real, fake); reverseMap.set(fake, real); } };
 
     addToken(tenant.name, 'Contoso');
     addToken(tenant.url,  'https://contoso.blueflagsecurity.com');
-    [..._actorSet].forEach((u, i) => addToken(u, actorFakes[i % actorFakes.length]));
-    [..._repoSet ].forEach((r, i) => addToken(r, repoFakes [i % repoFakes.length ]));
+    // Use numbered tokens — no pool limit, no collisions
+    [..._actorSet].forEach((u, i) => addToken(u, `dev_${String(i + 1).padStart(2, '0')}`));
+    [..._repoSet ].forEach((r, i) => addToken(r, `repo_${String(i + 1).padStart(2, '0')}`));
 
     const applyMap = (text, map) => {
       let out = text;
