@@ -1247,7 +1247,7 @@ function renderTenantDetail(id) {
       ${!S.config?.claudeApiKey ? `<div class="insight-placeholder">Add a Claude API key in Settings to automatically generate the customer-facing email content here.</div>` : ''}
       <div class="ai-draft-area" id="aiDraft-${id}" style="display:${S.config?.claudeApiKey ? 'block' : 'none'};">
         <input class="ai-subject" id="aiSubject-${id}" placeholder="Subject line..." value="${esc(S.aiDrafts[id]?.subject || '')}">
-        <textarea class="ai-body" id="aiBody-${id}" rows="7" placeholder="Customer-facing email content will appear here automatically...">${esc(S.aiDrafts[id]?.body || '')}</textarea>
+        <textarea class="ai-body" id="aiBody-${id}" rows="14" placeholder="Customer-facing email content will appear here automatically...">${esc(S.aiDrafts[id]?.body || '')}</textarea>
         <div class="ai-actions">
           <button class="copy-btn" id="aiCopy-${id}" onclick="copyEmail('${id}')">⎘ Copy Email</button>
           <button class="btn btn-ghost btn-sm" id="aiBtn-${id}" onclick="generateEmail('${id}')">↻ Regenerate Email</button>
@@ -1271,9 +1271,9 @@ function renderTenantDetail(id) {
       ${sectionWrap('threat-context', "Today's Threat Context", intelHTML)}
       ${sectionWrap('status', 'Status', statusBody)}
       ${riskBar ? sectionWrap('risk', 'Risk Exposure', `<div class="risk-bar">${riskBar}</div>`) : ''}
+      ${sectionWrap('insights', 'Insights', insightsBody)}
       ${ah ? sectionWrap('findings', 'Key Findings', ah) : ''}
       ${sectionWrap('actor-history', 'Actor History', `<div id="actorHistoryContent-${id}" style="color:var(--text3);font-family:var(--mono);font-size:11px;">Loading history...</div>`)}
-      ${sectionWrap('insights', 'Insights', insightsBody)}
     </div>`;
 
   restoreInsightMode(id);
