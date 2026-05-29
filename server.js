@@ -193,6 +193,7 @@ app.get('/api/arc/:id', (req, res) => {
   }).filter(Boolean);
 
   // Sort policies: Critical first, then by total violations desc
+  const sevOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
   const topPolicies = Object.entries(policyMap)
     .sort((a,b) => (sevOrder[a[1].severity]||9) - (sevOrder[b[1].severity]||9) || b[1].totalViolations - a[1].totalViolations)
     .map(([name, d]) => ({ name, ...d, actors: [...d.actors], runs: d.runs.size }));
@@ -219,7 +220,6 @@ app.get('/api/arc/:id', (req, res) => {
   const firstCrit = firstRun.crit, lastCrit = lastRun.crit;
   const trend = lastCrit < firstCrit * 0.8 ? '↓ Improving' : lastCrit > firstCrit * 1.1 ? '↑ Worsening' : '→ Stable';
   const trendColor = trend.startsWith('↓') ? '#27ae60' : trend.startsWith('↑') ? '#e05252' : '#f39c12';
-  const sevOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 
   const rowsHTML = runs.map((r,i) => {
     const prev = runs[i-1];
