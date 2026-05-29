@@ -103,6 +103,8 @@ app.delete('/api/snapshots/:id', (req, res) => {
 // ── Run Stream (SSE) + Stop ───────────────────────────────────────────────────
 let activeProc = null;
 const aiLogClients = new Set();
+const aiLogBuffer  = []; // ring buffer — holds last 200 messages for late-connecting clients
+const AI_BUF_MAX   = 200;
 
 app.get('/api/run/stream', (req, res) => {
   if (activeProc) {
@@ -258,6 +260,8 @@ app.get('/api/ai/log-stream', (req, res) => {
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection',    'keep-alive');
+  // Flush any buffered messages so late-connecting clients see the full log
+  for (const msg of aiLogBuffer) res.write(msg);
   aiLogClients.add(res);
   req.on('close', () => aiLogClients.delete(res));
 });
@@ -406,11 +410,10 @@ Rules:
     // Log to activity SSE stream if one is open, otherwise just console
     const logAI = (msg) => {
       console.log(`[AI] ${msg}`);
-      if (aiLogClients.size > 0) {
-        for (const client of aiLogClients) {
-          client.write(`event: log\ndata: ${JSON.stringify({ text: `[AI] ${msg}\n` })}\n\n`);
-        }
-      }
+      const frame = `event: log\ndata: ${JSON.stringify({ text: `[AI] ${msg}\n` })}\n\n`;
+      aiLogBuffer.push(frame);
+      if (aiLogBuffer.length > AI_BUF_MAX) aiLogBuffer.shift();
+      for (const client of aiLogClients) client.write(frame);
     };
 
     logAI(`Generating customer-facing email for ${tenant.name}`);
