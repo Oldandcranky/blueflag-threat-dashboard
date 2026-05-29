@@ -289,7 +289,7 @@ app.get('/api/arc/:id', (req, res) => {
   const html = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
-<title>${tenant.name} — BlueFlag Security Engagement Arc</title>
+<title>${tenant.name} — Identity Lifecycle Review</title>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 <style>
@@ -341,7 +341,7 @@ app.get('/api/arc/:id', (req, res) => {
 
   <!-- Header -->
   <div class="header">
-    <h1>${tenant.name} — Security Engagement Arc</h1>
+    <h1>${tenant.name} — Identity Lifecycle Review</h1>
     <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
   </div>
 
@@ -491,8 +491,279 @@ app.get('/api/arc/:id', (req, res) => {
 </body></html>`;
 
   res.setHeader('Content-Type', 'text/html');
-  res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}-arc-${new Date().toISOString().slice(0,10)}.html"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}-identity-lifecycle-review-${new Date().toISOString().slice(0,10)}.html"`);
   res.send(html);
+});
+
+// ── Demo Identity Lifecycle Review ───────────────────────────────────────────
+app.get('/demo-arc', (req, res) => {
+  const demo = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>Acme Corp — Identity Lifecycle Review (Demo)</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f8f9ff; color:#1a1a2e; }
+  .page { max-width:1100px; margin:0 auto; padding:40px 32px 60px; }
+  .demo-banner { background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:10px 16px; font-size:12px; color:#856404; margin-bottom:20px; font-weight:600; }
+  .header { background:linear-gradient(135deg,#0d1e3c 0%,#1550FF 100%); border-radius:12px; padding:32px 36px; margin-bottom:28px; color:#fff; }
+  .header h1 { font-size:26px; font-weight:800; margin-bottom:4px; }
+  .header .sub { font-size:13px; opacity:.65; font-family:monospace; }
+  .kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:28px; }
+  .kpi { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 18px; }
+  .kpi-val { font-size:26px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:5px; }
+  .kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
+  .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; }
+  .section { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:20px 24px; margin-bottom:20px; }
+  .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#999; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; padding:8px 10px; background:#f8f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
+  td { padding:8px 10px; border-bottom:1px solid #f5f5f5; }
+  tr:last-child td { border-bottom:none; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin:2px; }
+  .tag.chronic { background:#ffe8e8; color:#c0392b; }
+  .tag.resolved { background:#e8f8ee; color:#27ae60; }
+  .actor-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .actor-card { background:#f8f9ff; border:1px solid #e8ecf8; border-radius:8px; padding:12px 14px; }
+  .actor-name { font-family:monospace; font-size:11px; color:#333; font-weight:600; margin-bottom:4px; word-break:break-all; }
+  .actor-meta { font-size:10px; color:#999; }
+  .actor-bar { height:3px; background:#eee; border-radius:2px; margin-top:8px; }
+  .actor-bar-fill { height:3px; background:#1550FF; border-radius:2px; }
+  #sankeyChart { overflow:visible; }
+  .footer { text-align:center; font-size:11px; color:#bbb; margin-top:32px; padding-top:20px; border-top:1px solid #eee; }
+</style>
+</head><body>
+<div class="page">
+
+<div class="demo-banner">⚠️ DEMO REPORT — Fictional company, real BlueFlag policy data. For illustrative purposes only.</div>
+
+<div class="header">
+  <h1>Acme Corp — Identity Lifecycle Review</h1>
+  <div class="sub">acme.blueflagsecurity.com · BlueFlag Security · 30-Day Engagement · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
+  <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Monitoring Runs</div></div>
+  <div class="kpi"><div class="kpi-val red">284</div><div class="kpi-label">Critical Findings</div></div>
+  <div class="kpi"><div class="kpi-val">9</div><div class="kpi-label">Unique Identities Flagged</div></div>
+  <div class="kpi"><div class="kpi-val green">2</div><div class="kpi-label">Resolved</div></div>
+</div>
+
+<!-- Sankey -->
+<div class="section">
+  <div class="section-title">Identities → Policies → Severity</div>
+  <svg id="sankeyChart" height="340"></svg>
+</div>
+
+<!-- Run history -->
+<div class="section">
+  <div class="section-title">30-Day Run History</div>
+  <table>
+    <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Active Identities</th></tr></thead>
+    <tbody>
+      <tr><td style="font-family:monospace">2026-04-30</td><td><strong style="color:#e05252">312</strong></td><td><span style="color:#aaa">—</span></td><td style="color:#e07d22">891</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-01</td><td><strong style="color:#e05252">318</strong></td><td><span style="color:#e05252">▲6</span></td><td style="color:#e07d22">904</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-02</td><td><strong style="color:#e05252">309</strong></td><td><span style="color:#27ae60">▼9</span></td><td style="color:#e07d22">897</td><td>8</td></tr>
+      <tr><td style="font-family:monospace">2026-05-05</td><td><strong style="color:#e05252">321</strong></td><td><span style="color:#e05252">▲12</span></td><td style="color:#e07d22">912</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-07</td><td><strong style="color:#e05252">315</strong></td><td><span style="color:#27ae60">▼6</span></td><td style="color:#e07d22">889</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-10</td><td><strong style="color:#e05252">298</strong></td><td><span style="color:#27ae60">▼17</span></td><td style="color:#e07d22">876</td><td>8</td></tr>
+      <tr><td style="font-family:monospace">2026-05-12</td><td><strong style="color:#e05252">302</strong></td><td><span style="color:#e05252">▲4</span></td><td style="color:#e07d22">881</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-14</td><td><strong style="color:#e05252">288</strong></td><td><span style="color:#27ae60">▼14</span></td><td style="color:#e07d22">862</td><td>8</td></tr>
+      <tr><td style="font-family:monospace">2026-05-17</td><td><strong style="color:#e05252">291</strong></td><td><span style="color:#e05252">▲3</span></td><td style="color:#e07d22">858</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-19</td><td><strong style="color:#e05252">279</strong></td><td><span style="color:#27ae60">▼12</span></td><td style="color:#e07d22">843</td><td>8</td></tr>
+      <tr><td style="font-family:monospace">2026-05-21</td><td><strong style="color:#e05252">284</strong></td><td><span style="color:#e05252">▲5</span></td><td style="color:#e07d22">851</td><td>9</td></tr>
+      <tr><td style="font-family:monospace">2026-05-24</td><td><strong style="color:#e05252">271</strong></td><td><span style="color:#27ae60">▼13</span></td><td style="color:#e07d22">836</td><td>7</td></tr>
+      <tr><td style="font-family:monospace">2026-05-26</td><td><strong style="color:#e05252">276</strong></td><td><span style="color:#e05252">▲5</span></td><td style="color:#e07d22">829</td><td>8</td></tr>
+      <tr><td style="font-family:monospace">2026-05-29</td><td><strong style="color:#e05252">284</strong></td><td><span style="color:#e05252">▲8</span></td><td style="color:#e07d22">847</td><td>9</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Chronic actors -->
+<div class="section">
+  <div class="section-title">🔴 Chronic Identities — Present Every Run</div>
+  <div>
+    <span class="tag chronic">j.martinez_acme</span>
+    <span class="tag chronic">svc-deploy-prod</span>
+    <span class="tag chronic">t.okafor_acme</span>
+    <span class="tag chronic">k.patel_acme</span>
+    <span class="tag chronic">autobot-ci</span>
+  </div>
+</div>
+
+<!-- Resolved -->
+<div class="section">
+  <div class="section-title">✅ Resolved — No Longer Active</div>
+  <div>
+    <span class="tag resolved">r.chen_acme</span>
+    <span class="tag resolved">contractor_42</span>
+  </div>
+</div>
+
+<!-- Threats table -->
+<div class="section">
+  <div class="section-title">🎯 Threats Identified During Engagement</div>
+  <table>
+    <thead><tr><th>Finding / Policy</th><th>Severity</th><th>Total Violations</th><th>Identities Affected</th><th>Runs Present</th><th>First Seen</th><th>Last Seen</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Terraform files with critical or high misconfigurations</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">4,821</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy, t.okafor</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">312</td><td style="font-size:11px;color:#666">j.martinez, k.patel +1</td><td style="font-family:monospace">28 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Credential detected in code commit (excluding AWS, DB, Git)</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">47</td><td style="font-size:11px;color:#666">r.chen, t.okafor</td><td style="font-family:monospace">12 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-03</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-18</td></tr>
+      <tr><td style="font-weight:600">Suspicious activity on repository after long period of inactivity</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">238</td><td style="font-size:11px;color:#666">svc-deploy-prod</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Code scans with critical or high vulnerabilities</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">1,640</td><td style="font-size:11px;color:#666">autobot-ci, j.martinez +2</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Personal access tokens with write access and inactive for more than 30 days</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">89</td><td style="font-size:11px;color:#666">k.patel, contractor_42 +3</td><td style="font-family:monospace">25 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-24</td></tr>
+      <tr><td style="font-weight:600">Merged pull requests with check run failures</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">156</td><td style="font-size:11px;color:#666">j.martinez, k.patel</td><td style="font-family:monospace">22 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-01</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Suspicious spike of activity on new repositories by identities</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">14</td><td style="font-size:11px;color:#666">svc-deploy-prod</td><td style="font-family:monospace">8 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-07</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-21</td></tr>
+      <tr><td style="font-weight:600">Unverified commit changes to build configuration files</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">203</td><td style="font-size:11px;color:#666">autobot-ci, t.okafor +1</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">PRs approved by users with no prior commit history</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">31</td><td style="font-size:11px;color:#666">contractor_42</td><td style="font-family:monospace">14 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-02</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-19</td></tr>
+      <tr><td style="font-weight:600">Open source packages with high vulnerabilities</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">412</td><td style="font-size:11px;color:#666">j.martinez, t.okafor +3</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Identities with multiple risky policy violations</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">9</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy +4</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Per-actor threat detail -->
+<div class="section">
+  <div class="section-title">👤 Actor Threat Detail</div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">j.martinez_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
+      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">1,847</td></tr>
+      <tr><td>Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">54</td></tr>
+      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">87</td></tr>
+      <tr><td>Code scans with critical or high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">235</td></tr>
+      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">svc-deploy-prod</div><div style="font-size:10px;color:#999;margin-top:2px">Service account · First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
+      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">2,104</td></tr>
+      <tr><td>Suspicious activity on repository after long period of inactivity</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">238</td></tr>
+      <tr><td>Suspicious spike of activity on new repositories by identities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">14</td></tr>
+      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">t.okafor_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
+      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Credential detected in code commit (excluding AWS, DB, Git)</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">47</td></tr>
+      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">412</td></tr>
+      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">98</td></tr>
+      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">67</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">k.patel_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 28/30 runs</div></div>
+      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">22</td></tr>
+      <tr><td>Personal access tokens with write access and inactive for more than 30 days</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">3</td></tr>
+      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">69</td></tr>
+      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">autobot-ci</div><div style="font-size:10px;color:#999;margin-top:2px">CI/CD service account · First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
+      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Code scans with critical or high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">1,405</td></tr>
+      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">136</td></tr>
+      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Identity Lifecycle Review -->
+<div class="section">
+  <div class="section-title">Identity Lifecycle Review</div>
+  <div class="actor-grid">
+    <div class="actor-card"><div class="actor-name">j.martinez_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
+    <div class="actor-card"><div class="actor-name">svc-deploy-prod</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
+    <div class="actor-card"><div class="actor-name">t.okafor_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
+    <div class="actor-card"><div class="actor-name">k.patel_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:93%"></div></div><div class="actor-meta" style="margin-top:4px">28 / 30 runs · CHRONIC</div></div>
+    <div class="actor-card"><div class="actor-name">autobot-ci</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
+    <div class="actor-card"><div class="actor-name">m.nguyen_acme</div><div class="actor-meta">First: 2026-05-05 · Last: 2026-05-26</div><div class="actor-bar"><div class="actor-bar-fill" style="width:63%"></div></div><div class="actor-meta" style="margin-top:4px">19 / 30 runs</div></div>
+    <div class="actor-card"><div class="actor-name">r.chen_acme</div><div class="actor-meta">First: 2026-05-03 · Last: 2026-05-18</div><div class="actor-bar"><div class="actor-bar-fill" style="width:37%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">11 / 30 runs · RESOLVED</div></div>
+    <div class="actor-card"><div class="actor-name">contractor_42</div><div class="actor-meta">First: 2026-05-02 · Last: 2026-05-19</div><div class="actor-bar"><div class="actor-bar-fill" style="width:40%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">12 / 30 runs · RESOLVED</div></div>
+    <div class="actor-card"><div class="actor-name">d.osei_acme</div><div class="actor-meta">First: 2026-05-14 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:50%"></div></div><div class="actor-meta" style="margin-top:4px">15 / 30 runs</div></div>
+  </div>
+</div>
+
+<div class="footer">BlueFlag Security · Identity Lifecycle Review · DEMO ONLY — Not based on real customer data</div>
+</div>
+
+<script>
+(function() {
+  const nodes = [
+    {name:'j.martinez'},{name:'svc-deploy'},{name:'t.okafor'},{name:'k.patel'},{name:'autobot-ci'},
+    {name:'Terraform misconfigs'},{name:'Branch protection bypass'},{name:'Credential in commit'},{name:'Repo inactivity spike'},{name:'Code scan vulns'},{name:'Stale PATs'},{name:'Failed PR checks'},{name:'Build config changes'},{name:'OSS vulnerabilities'},
+    {name:'Critical'},{name:'High'},{name:'Medium'}
+  ];
+  const links = [
+    {source:0,target:5,value:1847},{source:0,target:6,value:54},{source:0,target:9,value:235},{source:0,target:11,value:87},
+    {source:1,target:5,value:2104},{source:1,target:7,value:238},{source:1,target:8,value:14},
+    {source:2,target:2,value:47},{source:2,target:5,value:412},{source:2,target:13,value:98},
+    {source:3,target:6,value:22},{source:3,target:10,value:3},{source:3,target:11,value:69},
+    {source:4,target:9,value:1405},{source:4,target:12,value:136},
+    {source:5,target:14,value:4363},{source:6,target:14,value:76},{source:2,target:14,value:47},
+    {source:7,target:15,value:238},{source:8,target:15,value:14},{source:9,target:15,value:1640},{source:10,target:15,value:89},{source:11,target:15,value:156},
+    {source:12,target:16,value:203},{source:13,target:16,value:412}
+  ];
+
+  const svg = d3.select('#sankeyChart');
+  const W = svg.node().parentElement.clientWidth - 48;
+  const H = 340;
+  svg.attr('width',W).attr('height',H);
+
+  const sk = d3.sankey().nodeWidth(14).nodePadding(6).extent([[1,4],[W-130,H-4]]);
+  let {nodes:ns, links:ls} = sk({nodes:nodes.map(d=>({...d})),links:links.map(d=>({...d}))});
+
+  const maxX = Math.max(...ns.map(n=>n.x0));
+  const minX = Math.min(...ns.map(n=>n.x0));
+  const color = n => n.name==='Critical'?'#e05252':n.name==='High'?'#e07d22':n.name==='Medium'?'#f0b429':n.x0===minX?'#1550FF':'#6b7db3';
+
+  svg.append('g').selectAll('rect').data(ns).join('rect')
+    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
+    .attr('fill',color).attr('rx',3).attr('opacity',.9);
+
+  svg.append('g').attr('fill','none').selectAll('path').data(ls).join('path')
+    .attr('d',d3.sankeyLinkHorizontal())
+    .attr('stroke',d=>color(ns[typeof d.target==='number'?d.target:d.target.index]))
+    .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.2);
+
+  svg.append('g').selectAll('text').data(ns).join('text')
+    .attr('x',d=>d.x0===minX?d.x1+6:d.x0===maxX?d.x1+6:d.x0-6)
+    .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
+    .attr('text-anchor',d=>d.x0===minX?'start':d.x0===maxX?'start':'end')
+    .attr('font-size',9).attr('font-family','monospace').attr('fill','#444').text(d=>d.name);
+})();
+</script>
+</body></html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send(demo);
 });
 
 // ── Run Stream (SSE) + Stop ───────────────────────────────────────────────────
