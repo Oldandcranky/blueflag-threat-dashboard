@@ -497,6 +497,70 @@ app.get('/api/arc/:id', (req, res) => {
 
 // ── Demo Identity Lifecycle Review ───────────────────────────────────────────
 app.get('/demo-arc', (req, res) => {
+  // Build Sankey using name→index lookup so indices can never be wrong
+  const demoNodes = [
+    // Actors (0-7)
+    'j.martinez_acme','svc-deploy-prod','t.okafor_acme','k.patel_acme','autobot-ci',
+    'copilot-bot','claude-code-svc','lovable-bot',
+    // Policies (8-17)
+    'Terraform misconfigs','Branch protection bypass','Credential in commit',
+    'Repo inactivity spike','Code scan vulns','Stale PATs','Failed PR checks',
+    'Build config changes','OSS vulns','Unverified AI commits',
+    // Severities (18-20)
+    'Critical','High','Medium'
+  ];
+  const ni = Object.fromEntries(demoNodes.map((n,i)=>[n,i]));
+  const demoLinks = [
+    // j.martinez
+    [ni['j.martinez_acme'],   ni['Terraform misconfigs'],    1847],
+    [ni['j.martinez_acme'],   ni['Branch protection bypass'], 54],
+    [ni['j.martinez_acme'],   ni['Code scan vulns'],          235],
+    [ni['j.martinez_acme'],   ni['Failed PR checks'],         87],
+    // svc-deploy
+    [ni['svc-deploy-prod'],   ni['Terraform misconfigs'],     2104],
+    [ni['svc-deploy-prod'],   ni['Repo inactivity spike'],    238],
+    [ni['svc-deploy-prod'],   ni['Build config changes'],     136],
+    // t.okafor
+    [ni['t.okafor_acme'],     ni['Credential in commit'],     47],
+    [ni['t.okafor_acme'],     ni['Terraform misconfigs'],     412],
+    [ni['t.okafor_acme'],     ni['OSS vulns'],                98],
+    // k.patel
+    [ni['k.patel_acme'],      ni['Branch protection bypass'], 22],
+    [ni['k.patel_acme'],      ni['Stale PATs'],               3],
+    [ni['k.patel_acme'],      ni['Failed PR checks'],         69],
+    // autobot-ci
+    [ni['autobot-ci'],        ni['Code scan vulns'],          1405],
+    [ni['autobot-ci'],        ni['Build config changes'],     67],
+    // copilot-bot (GitHub Copilot service account)
+    [ni['copilot-bot'],       ni['Unverified AI commits'],    312],
+    [ni['copilot-bot'],       ni['Failed PR checks'],         44],
+    [ni['copilot-bot'],       ni['OSS vulns'],                89],
+    // claude-code-svc (Claude Code agentic service account)
+    [ni['claude-code-svc'],   ni['Unverified AI commits'],    178],
+    [ni['claude-code-svc'],   ni['Terraform misconfigs'],     203],
+    [ni['claude-code-svc'],   ni['Credential in commit'],     12],
+    // lovable-bot (Lovable AI builder)
+    [ni['lovable-bot'],       ni['Unverified AI commits'],    94],
+    [ni['lovable-bot'],       ni['OSS vulns'],                156],
+    [ni['lovable-bot'],       ni['Failed PR checks'],         31],
+    // Policies → Severities
+    [ni['Terraform misconfigs'],    ni['Critical'], 4566],
+    [ni['Branch protection bypass'],ni['Critical'],  76],
+    [ni['Credential in commit'],    ni['Critical'],  59],
+    [ni['Unverified AI commits'],   ni['Critical'], 584],
+    [ni['Repo inactivity spike'],   ni['High'],     238],
+    [ni['Code scan vulns'],         ni['High'],    1640],
+    [ni['Stale PATs'],              ni['High'],       3],
+    [ni['Failed PR checks'],        ni['High'],     231],
+    [ni['Build config changes'],    ni['Medium'],   203],
+    [ni['OSS vulns'],               ni['Medium'],   343],
+  ].map(([s,t,v])=>({source:s,target:t,value:v}));
+
+  const sankeyJSON = JSON.stringify({
+    nodes: demoNodes.map(name=>({name})),
+    links: demoLinks
+  });
+
   const demo = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
@@ -547,15 +611,15 @@ app.get('/demo-arc', (req, res) => {
 <div class="kpi-row">
   <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
   <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Monitoring Runs</div></div>
-  <div class="kpi"><div class="kpi-val red">284</div><div class="kpi-label">Critical Findings</div></div>
-  <div class="kpi"><div class="kpi-val">9</div><div class="kpi-label">Unique Identities Flagged</div></div>
+  <div class="kpi"><div class="kpi-val red">401</div><div class="kpi-label">Critical Findings</div></div>
+  <div class="kpi"><div class="kpi-val">12</div><div class="kpi-label">Unique Identities Flagged</div></div>
   <div class="kpi"><div class="kpi-val green">2</div><div class="kpi-label">Resolved</div></div>
 </div>
 
 <!-- Sankey -->
 <div class="section">
   <div class="section-title">Identities → Policies → Severity</div>
-  <svg id="sankeyChart" height="340"></svg>
+  <svg id="sankeyChart" height="420"></svg>
 </div>
 
 <!-- Run history -->
@@ -591,6 +655,9 @@ app.get('/demo-arc', (req, res) => {
     <span class="tag chronic">t.okafor_acme</span>
     <span class="tag chronic">k.patel_acme</span>
     <span class="tag chronic">autobot-ci</span>
+    <span class="tag chronic" style="background:#e8f0ff;color:#1550FF;border:1px solid #c0d0ff">🤖 copilot-bot</span>
+    <span class="tag chronic" style="background:#f0e8ff;color:#7c3aed;border:1px solid #d0b0ff">🤖 claude-code-svc</span>
+    <span class="tag chronic" style="background:#fff0e8;color:#c2410c;border:1px solid #ffcba4">🤖 lovable-bot</span>
   </div>
 </div>
 
@@ -620,9 +687,14 @@ app.get('/demo-arc', (req, res) => {
       <tr><td style="font-weight:600">Unverified commit changes to build configuration files</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">203</td><td style="font-size:11px;color:#666">autobot-ci, t.okafor +1</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
       <tr><td style="font-weight:600">PRs approved by users with no prior commit history</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">31</td><td style="font-size:11px;color:#666">contractor_42</td><td style="font-family:monospace">14 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-02</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-19</td></tr>
       <tr><td style="font-weight:600">Open source packages with high vulnerabilities</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">412</td><td style="font-size:11px;color:#666">j.martinez, t.okafor +3</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Identities with multiple risky policy violations</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">9</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy +4</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr><td style="font-weight:600">Identities with multiple risky policy violations</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">12</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy +4</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Unverified commit changes to build configuration files — Agentic AI origin</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">584</td><td style="font-size:11px;color:#666">copilot-bot, claude-code-svc, lovable-bot</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Credential detected in code commit — AI-generated code (copilot-bot, claude-code-svc)</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">12</td><td style="font-size:11px;color:#666">copilot-bot, claude-code-svc</td><td style="font-family:monospace">8 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-06</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-27</td></tr>
+      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Merged pull requests with check run failures — AI agent bypassed CI gates</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">75</td><td style="font-size:11px;color:#666">copilot-bot, lovable-bot</td><td style="font-family:monospace">22 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-01</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
+      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Open source packages with high vulnerabilities — AI-imported dependencies</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">245</td><td style="font-size:11px;color:#666">lovable-bot, copilot-bot</td><td style="font-family:monospace">28 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
     </tbody>
   </table>
+  <div style="font-size:11px;color:#7c3aed;margin-top:10px;padding:8px 12px;background:#f5f0ff;border-radius:6px;border-left:3px solid #7c3aed">🤖 <strong>Agentic AI Note:</strong> copilot-bot, claude-code-svc, and lovable-bot are service account identities created when AI coding tools were granted repository access. These accounts operate autonomously and triggered policy violations across 30 consecutive runs — indicating persistent, unreviewed agentic activity in your environment.</div>
 </div>
 
 <!-- Per-actor threat detail -->
@@ -693,6 +765,42 @@ app.get('/demo-arc', (req, res) => {
       <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
     </tbody></table>
   </div>
+
+  <div style="border:1px solid #c0d0ff;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#f8f0ff">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 copilot-bot <span style="font-weight:400;color:#1550FF;font-size:10px">GitHub Copilot service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs · AGENTIC AI</div></div>
+      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">312</td></tr>
+      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">44</td></tr>
+      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">89</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #d0b0ff;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#faf5ff">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 claude-code-svc <span style="font-weight:400;color:#7c3aed;font-size:10px">Claude Code agentic service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs · AGENTIC AI</div></div>
+      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">178</td></tr>
+      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">203</td></tr>
+      <tr><td>Credential detected in code commit (excluding AWS, DB, Git)</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">12</td></tr>
+    </tbody></table>
+  </div>
+
+  <div style="border:1px solid #ffcba4;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#fff8f5">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 lovable-bot <span style="font-weight:400;color:#c2410c;font-size:10px">Lovable AI builder service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-05-01 · Last seen: 2026-05-29 · 28/30 runs · AGENTIC AI</div></div>
+      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
+      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">94</td></tr>
+      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">156</td></tr>
+      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">31</td></tr>
+    </tbody></table>
+  </div>
 </div>
 
 <!-- Identity Lifecycle Review -->
@@ -708,6 +816,9 @@ app.get('/demo-arc', (req, res) => {
     <div class="actor-card"><div class="actor-name">r.chen_acme</div><div class="actor-meta">First: 2026-05-03 · Last: 2026-05-18</div><div class="actor-bar"><div class="actor-bar-fill" style="width:37%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">11 / 30 runs · RESOLVED</div></div>
     <div class="actor-card"><div class="actor-name">contractor_42</div><div class="actor-meta">First: 2026-05-02 · Last: 2026-05-19</div><div class="actor-bar"><div class="actor-bar-fill" style="width:40%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">12 / 30 runs · RESOLVED</div></div>
     <div class="actor-card"><div class="actor-name">d.osei_acme</div><div class="actor-meta">First: 2026-05-14 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:50%"></div></div><div class="actor-meta" style="margin-top:4px">15 / 30 runs</div></div>
+    <div class="actor-card" style="border-color:#c0d0ff;background:#f8f0ff"><div class="actor-name" style="color:#1550FF">🤖 copilot-bot</div><div class="actor-meta">GitHub Copilot · First: 2026-04-30</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%;background:#1550FF"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · AGENTIC AI</div></div>
+    <div class="actor-card" style="border-color:#d0b0ff;background:#faf5ff"><div class="actor-name" style="color:#7c3aed">🤖 claude-code-svc</div><div class="actor-meta">Claude Code · First: 2026-04-30</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%;background:#7c3aed"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · AGENTIC AI</div></div>
+    <div class="actor-card" style="border-color:#ffcba4;background:#fff8f5"><div class="actor-name" style="color:#c2410c">🤖 lovable-bot</div><div class="actor-meta">Lovable AI · First: 2026-05-01</div><div class="actor-bar"><div class="actor-bar-fill" style="width:93%;background:#c2410c"></div></div><div class="actor-meta" style="margin-top:4px">28 / 30 runs · AGENTIC AI</div></div>
   </div>
 </div>
 
@@ -716,48 +827,54 @@ app.get('/demo-arc', (req, res) => {
 
 <script>
 (function() {
-  const nodes = [
-    {name:'j.martinez'},{name:'svc-deploy'},{name:'t.okafor'},{name:'k.patel'},{name:'autobot-ci'},
-    {name:'Terraform misconfigs'},{name:'Branch protection bypass'},{name:'Credential in commit'},{name:'Repo inactivity spike'},{name:'Code scan vulns'},{name:'Stale PATs'},{name:'Failed PR checks'},{name:'Build config changes'},{name:'OSS vulnerabilities'},
-    {name:'Critical'},{name:'High'},{name:'Medium'}
-  ];
-  const links = [
-    {source:0,target:5,value:1847},{source:0,target:6,value:54},{source:0,target:9,value:235},{source:0,target:11,value:87},
-    {source:1,target:5,value:2104},{source:1,target:7,value:238},{source:1,target:8,value:14},
-    {source:2,target:2,value:47},{source:2,target:5,value:412},{source:2,target:13,value:98},
-    {source:3,target:6,value:22},{source:3,target:10,value:3},{source:3,target:11,value:69},
-    {source:4,target:9,value:1405},{source:4,target:12,value:136},
-    {source:5,target:14,value:4363},{source:6,target:14,value:76},{source:2,target:14,value:47},
-    {source:7,target:15,value:238},{source:8,target:15,value:14},{source:9,target:15,value:1640},{source:10,target:15,value:89},{source:11,target:15,value:156},
-    {source:12,target:16,value:203},{source:13,target:16,value:412}
-  ];
-
+  const raw = ${sankeyJSON};
   const svg = d3.select('#sankeyChart');
   const W = svg.node().parentElement.clientWidth - 48;
-  const H = 340;
-  svg.attr('width',W).attr('height',H);
+  const H = 420;
+  svg.attr('width', W).attr('height', H).style('overflow','visible');
 
-  const sk = d3.sankey().nodeWidth(14).nodePadding(6).extent([[1,4],[W-130,H-4]]);
-  let {nodes:ns, links:ls} = sk({nodes:nodes.map(d=>({...d})),links:links.map(d=>({...d}))});
+  const sk = d3.sankey().nodeWidth(14).nodePadding(5).extent([[1,4],[W-140,H-4]]);
+  let { nodes, links } = sk({
+    nodes: raw.nodes.map(d=>({...d})),
+    links: raw.links.map(d=>({...d}))
+  });
 
-  const maxX = Math.max(...ns.map(n=>n.x0));
-  const minX = Math.min(...ns.map(n=>n.x0));
-  const color = n => n.name==='Critical'?'#e05252':n.name==='High'?'#e07d22':n.name==='Medium'?'#f0b429':n.x0===minX?'#1550FF':'#6b7db3';
+  const maxX = Math.max(...nodes.map(n=>n.x0));
+  const minX = Math.min(...nodes.map(n=>n.x0));
 
-  svg.append('g').selectAll('rect').data(ns).join('rect')
-    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
+  const aiNames = new Set(['copilot-bot','claude-code-svc','lovable-bot']);
+  const color = n => {
+    if (n.name==='Critical')         return '#e05252';
+    if (n.name==='High')             return '#e07d22';
+    if (n.name==='Medium')           return '#f0b429';
+    if (n.name==='copilot-bot')      return '#1550FF';
+    if (n.name==='claude-code-svc')  return '#7c3aed';
+    if (n.name==='lovable-bot')      return '#c2410c';
+    if (n.x0 === minX)               return '#1a3a6b';
+    return '#6b7db3';
+  };
+
+  // Nodes
+  svg.append('g').selectAll('rect').data(nodes).join('rect')
+    .attr('x',d=>d.x0).attr('y',d=>d.y0)
+    .attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
     .attr('fill',color).attr('rx',3).attr('opacity',.9);
 
-  svg.append('g').attr('fill','none').selectAll('path').data(ls).join('path')
+  // Links
+  svg.append('g').attr('fill','none').selectAll('path').data(links).join('path')
     .attr('d',d3.sankeyLinkHorizontal())
-    .attr('stroke',d=>color(ns[typeof d.target==='number'?d.target:d.target.index]))
-    .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.2);
+    .attr('stroke',d=>color(d.target))
+    .attr('stroke-width',d=>Math.max(1,d.width))
+    .attr('opacity',.2);
 
-  svg.append('g').selectAll('text').data(ns).join('text')
-    .attr('x',d=>d.x0===minX?d.x1+6:d.x0===maxX?d.x1+6:d.x0-6)
+  // Labels
+  svg.append('g').selectAll('text').data(nodes).join('text')
+    .attr('x',d=>d.x0===minX ? d.x1+6 : d.x0===maxX ? d.x1+6 : d.x0-6)
     .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
-    .attr('text-anchor',d=>d.x0===minX?'start':d.x0===maxX?'start':'end')
-    .attr('font-size',9).attr('font-family','monospace').attr('fill','#444').text(d=>d.name);
+    .attr('text-anchor',d=>d.x0===minX||d.x0===maxX?'start':'end')
+    .attr('font-size',9).attr('font-family','monospace')
+    .attr('fill',d=>color(d)).attr('font-weight',d=>aiNames.has(d.name)?'700':'400')
+    .text(d=>d.name);
 })();
 </script>
 </body></html>`;
