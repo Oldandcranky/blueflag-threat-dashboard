@@ -338,6 +338,41 @@ app.post('/api/generate-email', async (req, res) => {
       .map(([sec,r])=>r&&(r.critical||r.high)?`${sec.replace(' Risk','')}: ${r.critical||0} critical, ${r.high||0} high`:'')
       .filter(Boolean).join(' | ');
 
+    // ── Scrambler — replace all customer-identifiable strings with generic tokens ──
+    // Nothing identifiable leaves this server; tokens are reversed on the response.
+    const _actorSet = new Set();
+    const _repoSet  = new Set();
+    for (const p of (snap?.policies||[])) {
+      for (const a of (p.actors||[])) {
+        if (a.user)       _actorSet.add(a.user);
+        if (a.repository) _repoSet.add(a.repository);
+      }
+    }
+    for (const [user, id] of Object.entries(identities)) {
+      _actorSet.add(user);
+      (id.topActiveRepos||[]).forEach(r => _repoSet.add(r));
+    }
+    for (const b of (snap?.behaviors||[])) { if (b.user) _actorSet.add(b.user); }
+
+    const actorFakes = ['dev_alpha','dev_beta','dev_gamma','dev_delta','dev_epsilon','dev_zeta'];
+    const repoFakes  = ['repo_alpha','repo_beta','repo_gamma','repo_delta','repo_epsilon','repo_zeta'];
+    const tokenMap   = new Map(); // real → fake
+    const reverseMap = new Map(); // fake → real
+    const addToken   = (real, fake) => { if (real) { tokenMap.set(real, fake); reverseMap.set(fake, real); } };
+
+    addToken(tenant.name, 'Contoso');
+    addToken(tenant.url,  'https://contoso.blueflagsecurity.com');
+    [..._actorSet].forEach((u, i) => addToken(u, actorFakes[i % actorFakes.length]));
+    [..._repoSet ].forEach((r, i) => addToken(r, repoFakes [i % repoFakes.length ]));
+
+    const applyMap = (text, map) => {
+      let out = text;
+      [...map.entries()].sort((a,b) => b[0].length - a[0].length).forEach(([k,v]) => { out = out.split(k).join(v); });
+      return out;
+    };
+    const scramble   = t => applyMap(t, tokenMap);
+    const unscramble = t => applyMap(t, reverseMap);
+
     const prompt = `You are Chris Goodman, Head of Threat at BlueFlag Security. Write a short, direct customer-facing outreach email to a security/engineering leader at the customer organization.
 
 VOICE: Casual, credible, and slightly urgent — but not alarmist. Sound like a security partner sharing a specific finding worth reviewing, not a sales pitch. Use real names, real numbers, and specific repo/policy details. Keep it concise: 2-3 short paragraphs max. End with a clear ask for 15 minutes to review the findings.
@@ -366,6 +401,8 @@ Rules:
 - Reference the strongest actor finding and 1-2 concrete numbers/policy reasons.
 - If there is a very large clone count, mention it plainly and connect it to why it matters.`;
 
+    const scrambledPrompt = scramble(prompt);
+
     // Log to activity SSE stream if one is open, otherwise just console
     const logAI = (msg) => {
       console.log(`[AI] ${msg}`);
@@ -379,8 +416,9 @@ Rules:
     logAI(`Generating customer-facing email for ${tenant.name}`);
     logAI(`Model: claude-sonnet-4-20250514`);
     logAI(`Context: ${actorLines.length} actor(s), ${intelHook ? 'intel hook loaded' : 'no intel'}`);
+    logAI(`Scramble map (${tokenMap.size} values):\n${[...tokenMap.entries()].map(([r,f])=>`  "${r}" → "${f}"`).join('\n')}`);
     logAI(`Sending request to Anthropic API...`);
-    logAI(`--- PROMPT SENT ---\n${prompt}\n--- END PROMPT ---`);
+    logAI(`--- PROMPT SENT TO ANTHROPIC (scrambled) ---\n${scrambledPrompt}\n--- END PROMPT ---`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -392,7 +430,7 @@ Rules:
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: scrambledPrompt }],
       }),
     });
 
@@ -402,13 +440,15 @@ Rules:
     const usage = data.usage;
     logAI(`Response received — input tokens: ${usage?.input_tokens}, output tokens: ${usage?.output_tokens}`);
 
-    const text    = data.content?.[0]?.text || '';
-    const lines   = text.split('\n');
-    const subjIdx = lines.findIndex(l=>l.startsWith('Subject:'));
-    const subject = subjIdx>=0 ? lines[subjIdx].replace('Subject:','').trim() : '';
-    const body    = lines.slice(subjIdx>=0?subjIdx+1:0).join('\n').trim();
+    const rawText  = data.content?.[0]?.text || '';
+    const text     = unscramble(rawText);
+    const lines    = text.split('\n');
+    const subjIdx  = lines.findIndex(l=>l.startsWith('Subject:'));
+    const subject  = subjIdx>=0 ? lines[subjIdx].replace('Subject:','').trim() : '';
+    const body     = lines.slice(subjIdx>=0?subjIdx+1:0).join('\n').trim();
 
-    logAI(`--- RESPONSE RECEIVED ---\n${text}\n--- END RESPONSE ---`);
+    logAI(`--- RESPONSE FROM ANTHROPIC (scrambled, as received) ---\n${rawText}\n--- END RESPONSE ---`);
+    logAI(`--- FINAL EMAIL (names restored) ---\n${text}\n--- END EMAIL ---`);
     logAI(`✓ Email draft generated for ${tenant.name}`);
     res.json({ subject, body });
   } catch(e) {
