@@ -1273,7 +1273,7 @@ function renderTenantDetail(id) {
       ${riskBar ? sectionWrap('risk', 'Risk Exposure', `<div class="risk-bar">${riskBar}</div>`) : ''}
       ${sectionWrap('insights', 'Insights', insightsBody)}
       ${ah ? sectionWrap('findings', 'Key Findings', ah) : ''}
-      ${sectionWrap('actor-history', 'Actor History', `<div id="actorHistoryContent-${id}" style="color:var(--text3);font-family:var(--mono);font-size:11px;">Loading history...</div>`)}
+      ${sectionWrap('actor-history', 'Identity Lifecycle Review', `<div id="actorHistoryContent-${id}" style="color:var(--text3);font-family:var(--mono);font-size:11px;">Loading history...</div>`)}
     </div>`;
 
   restoreInsightMode(id);

@@ -432,7 +432,7 @@ app.get('/api/arc/:id', (req, res) => {
   </div>
 
   <div class="section">
-    <div class="section-title">All Actors Observed During Engagement</div>
+    <div class="section-title">Identity Lifecycle Review</div>
     <div class="actor-grid">
       ${Object.entries(actorTimeline).sort((a,b)=>b[1].count-a[1].count).map(([name,v])=>`
         <div class="actor-card">
