@@ -525,7 +525,6 @@ app.get('/api/arc/:id', (req, res) => {
 </body></html>`;
 
   res.setHeader('Content-Type', 'text/html');
-  res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}-identity-lifecycle-review-${new Date().toISOString().slice(0,10)}.html"`);
   res.send(html);
 });
 
