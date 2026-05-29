@@ -152,6 +152,11 @@ app.get('/api/arc/:id', (req, res) => {
   const files = fs.readdirSync(histDir).filter(f=>f.endsWith('.json')).sort();
   if (!files.length) return res.status(404).send('No history found');
 
+  // Load latest snapshot for Sankey data
+  const latestSnap = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(snapDir, `${req.params.id}.json`), 'utf8')); } catch { return null; }
+  })();
+
   const runs = files.map(f => {
     const date = f.slice(0,10);
     try {
@@ -159,7 +164,11 @@ app.get('/api/arc/:id', (req, res) => {
       const crit = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.critical||0),0);
       const high = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.high||0),0);
       const actors = [...new Set([...(s.behaviors||[]).map(b=>b.user).filter(Boolean)])];
-      return { date, crit, high, actors, actorCount: actors.length };
+      const idCrit = s.risk?.['Identities Risk']?.critical||0;
+      const idHigh = s.risk?.['Identities Risk']?.high||0;
+      const asCrit = s.risk?.['Assets Risk']?.critical||0;
+      const asHigh = s.risk?.['Assets Risk']?.high||0;
+      return { date, crit, high, actors, actorCount: actors.length, idCrit, idHigh, asCrit, asHigh };
     } catch { return null; }
   }).filter(Boolean);
 
@@ -181,68 +190,257 @@ app.get('/api/arc/:id', (req, res) => {
   const firstRun = runs[0], lastRun = runs.at(-1);
   const engagementDays = Math.floor((new Date(lastRun.date)-new Date(firstRun.date))/86400000)+1;
 
+  // Trend: improving, stable, or worsening?
+  const firstCrit = firstRun.crit, lastCrit = lastRun.crit;
+  const trend = lastCrit < firstCrit * 0.8 ? '↓ Improving' : lastCrit > firstCrit * 1.1 ? '↑ Worsening' : '→ Stable';
+  const trendColor = trend.startsWith('↓') ? '#27ae60' : trend.startsWith('↑') ? '#e05252' : '#f39c12';
+
   const rowsHTML = runs.map((r,i) => {
     const prev = runs[i-1];
     const critDelta = prev ? r.crit - prev.crit : 0;
-    const critStr = critDelta > 0 ? `<span style="color:#e05252">+${critDelta}</span>` : critDelta < 0 ? `<span style="color:#52c48a">${critDelta}</span>` : '—';
+    const critStr = critDelta > 0 ? `<span style="color:#e05252">▲${critDelta}</span>` : critDelta < 0 ? `<span style="color:#27ae60">▼${Math.abs(critDelta)}</span>` : '<span style="color:#aaa">—</span>';
     return `<tr>
-      <td>${r.date}</td>
-      <td>${r.crit}</td>
+      <td style="font-family:monospace">${r.date}</td>
+      <td><strong style="color:#e05252">${r.crit}</strong></td>
       <td>${critStr}</td>
-      <td>${r.high}</td>
+      <td style="color:#e07d22">${r.high}</td>
       <td>${r.actorCount}</td>
-      <td style="font-size:11px;color:#888">${r.actors.slice(0,3).join(', ')}${r.actors.length>3?` +${r.actors.length-3} more`:''}</td>
+      <td style="font-size:11px;color:#888;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.actors.slice(0,3).map(a=>a.split(/[-_]/)[0]).join(', ')}${r.actors.length>3?` +${r.actors.length-3} more`:''}</td>
     </tr>`;
   }).join('');
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  // Chart data for D3
+  const chartData = JSON.stringify(runs.map(r=>({ date: r.date, crit: r.crit, high: r.high })));
+
+  // Sankey data from latest snapshot
+  const sankeyData = (() => {
+    if (!latestSnap?.risk) return null;
+    const nodes = [], links = [];
+    const cats = Object.entries(latestSnap.risk).filter(([,r])=>r&&(r.critical||r.high));
+    const tenantIdx = 0;
+    nodes.push({ name: tenant.name });
+    cats.forEach(([cat], i) => nodes.push({ name: cat.replace(' Risk','') }));
+    nodes.push({ name: 'Critical' }, { name: 'High' });
+    const critIdx = nodes.length - 2, highIdx = nodes.length - 1;
+    cats.forEach(([cat, r], i) => {
+      if (r.critical) links.push({ source: 0, target: i+1, value: r.critical });
+      if (r.high)     links.push({ source: 0, target: i+1, value: r.high });
+      if (r.critical) links.push({ source: i+1, target: critIdx, value: r.critical });
+      if (r.high)     links.push({ source: i+1, target: highIdx, value: r.high });
+    });
+    return JSON.stringify({ nodes, links });
+  })();
+
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
 <title>${tenant.name} — BlueFlag Security Engagement Arc</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 40px auto; padding: 0 24px; color: #1a1a2e; background: #fff; }
-  h1 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
-  .meta { font-size: 13px; color: #666; margin-bottom: 32px; }
-  .kpi-row { display: flex; gap: 16px; margin-bottom: 32px; }
-  .kpi { background: #f5f7ff; border: 1px solid #e0e4f0; border-radius: 8px; padding: 16px 20px; flex: 1; }
-  .kpi-val { font-size: 28px; font-weight: 800; color: #1550FF; font-family: monospace; }
-  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #888; margin-top: 4px; }
-  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #888; margin: 28px 0 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
-  th { text-align: left; padding: 8px 10px; background: #f5f7ff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #666; border-bottom: 2px solid #e0e4f0; }
-  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
-  tr:hover td { background: #fafbff; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin: 2px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9ff; color: #1a1a2e; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #0d1e3c 0%, #1550FF 100%); border-radius: 12px; padding: 32px 36px; margin-bottom: 28px; color: #fff; display: flex; justify-content: space-between; align-items: flex-end; }
+  .header-left h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+  .header-left .sub { font-size: 13px; opacity: .65; font-family: monospace; }
+  .header-right { text-align: right; }
+  .trend-badge { font-size: 18px; font-weight: 800; color: ${trendColor}; background: rgba(255,255,255,.12); padding: 8px 16px; border-radius: 8px; }
+  .trend-label { font-size: 10px; opacity: .6; text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+
+  /* KPIs */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
+  .kpi { background: #fff; border: 1px solid #e0e4f0; border-radius: 10px; padding: 16px 18px; }
+  .kpi-val { font-size: 26px; font-weight: 800; color: #1550FF; font-family: monospace; line-height: 1; margin-bottom: 5px; }
+  .kpi-val.red { color: #e05252; }
+  .kpi-val.green { color: #27ae60; }
+  .kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+
+  /* Sections */
+  .section { background: #fff; border: 1px solid #e0e4f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #999; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+  /* Charts */
+  #trendChart { width: 100%; }
+  #sankeyChart { width: 100%; }
+  .chart-line-crit { fill: none; stroke: #e05252; stroke-width: 2.5; }
+  .chart-line-high { fill: none; stroke: #e07d22; stroke-width: 2; stroke-dasharray: 4 2; }
+  .chart-area-crit { fill: rgba(224,82,82,.1); }
+  .chart-area-high { fill: rgba(224,125,34,.07); }
+  .axis text { font-size: 10px; fill: #999; font-family: monospace; }
+  .axis line, .axis path { stroke: #eee; }
+  .grid line { stroke: #f0f0f0; }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #666; margin-right: 16px; }
+  .legend-dot { width: 10px; height: 3px; border-radius: 2px; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; background: #f8f9ff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #999; border-bottom: 2px solid #eee; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Actors */
+  .actor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .actor-card { background: #f8f9ff; border: 1px solid #e8ecf8; border-radius: 8px; padding: 12px 14px; }
+  .actor-name { font-family: monospace; font-size: 11px; color: #333; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+  .actor-meta { font-size: 10px; color: #999; }
+  .actor-bar { height: 3px; background: #eee; border-radius: 2px; margin-top: 8px; }
+  .actor-bar-fill { height: 3px; background: #1550FF; border-radius: 2px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin: 2px; }
   .tag.chronic { background: #ffe8e8; color: #c0392b; }
   .tag.resolved { background: #e8f8ee; color: #27ae60; }
-  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #eee; font-size: 11px; color: #aaa; }
-</style></head><body>
-<h1>${tenant.name} — Security Engagement Arc</h1>
-<div class="meta">BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · ${engagementDays}-day engagement · ${runs.length} monitoring runs</div>
 
-<div class="kpi-row">
-  <div class="kpi"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
-  <div class="kpi"><div class="kpi-val">${runs.length}</div><div class="kpi-label">Runs Completed</div></div>
-  <div class="kpi"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Unique Actors Flagged</div></div>
-  <div class="kpi"><div class="kpi-val">${lastRun.crit}</div><div class="kpi-label">Critical Findings (Latest)</div></div>
+  /* Footer */
+  .footer { text-align: center; font-size: 11px; color: #bbb; margin-top: 32px; padding-top: 20px; border-top: 1px solid #eee; }
+</style>
+</head><body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>${tenant.name} — Security Engagement Arc</h1>
+      <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+    </div>
+    <div class="header-right">
+      <div class="trend-badge">${trend}</div>
+      <div class="trend-label" style="color:rgba(255,255,255,.5)">Risk Trajectory</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
+    <div class="kpi"><div class="kpi-val">${runs.length}</div><div class="kpi-label">Monitoring Runs</div></div>
+    <div class="kpi"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
+    <div class="kpi"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Unique Actors</div></div>
+    <div class="kpi"><div class="kpi-val ${resolved.length ? 'green' : ''}">${resolved.length}</div><div class="kpi-label">Resolved Actors</div></div>
+  </div>
+
+  <!-- Charts side by side -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-title">Risk Trend — Critical &amp; High Over Time</div>
+      <div style="margin-bottom:10px">
+        <span class="legend-item"><span class="legend-dot" style="background:#e05252"></span>Critical</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#e07d22"></span>High</span>
+      </div>
+      <svg id="trendChart" height="200"></svg>
+    </div>
+    <div class="section">
+      <div class="section-title">Current Risk Flow — Categories → Severity</div>
+      <svg id="sankeyChart" height="200"></svg>
+    </div>
+  </div>
+
+  <!-- Run history table -->
+  <div class="section">
+    <div class="section-title">Run History</div>
+    <table>
+      <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
+      <tbody>${rowsHTML}</tbody>
+    </table>
+  </div>
+
+  <!-- Actors -->
+  ${chronics.length ? `<div class="section">
+    <div class="section-title">🔴 Chronic Actors — Present in 70%+ of Runs</div>
+    <div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>
+  </div>` : ''}
+
+  ${resolved.length ? `<div class="section">
+    <div class="section-title">✅ Resolved Actors — No Longer Active</div>
+    <div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>
+  </div>` : ''}
+
+  <div class="section">
+    <div class="section-title">All Actors Observed During Engagement</div>
+    <div class="actor-grid">
+      ${Object.entries(actorTimeline).sort((a,b)=>b[1].count-a[1].count).map(([name,v])=>`
+        <div class="actor-card">
+          <div class="actor-name">${name}</div>
+          <div class="actor-meta">First: ${v.first} · Last: ${v.last}</div>
+          <div class="actor-bar"><div class="actor-bar-fill" style="width:${Math.round(v.count/runs.length*100)}%"></div></div>
+          <div class="actor-meta" style="margin-top:4px">${v.count} / ${runs.length} runs</div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="footer">BlueFlag Security Threat Dashboard · Confidential · ${tenant.url}</div>
 </div>
 
-<h2>Run History</h2>
-<table>
-  <thead><tr><th>Date</th><th>Critical</th><th>Δ Critical</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
-  <tbody>${rowsHTML}</tbody>
-</table>
+<script>
+// ── Trend Chart ──────────────────────────────────────────────────
+(function() {
+  const data = ${chartData};
+  if (data.length < 2) return;
+  const svg = d3.select('#trendChart');
+  const W = svg.node().parentElement.clientWidth - 48;
+  const H = 200, pad = { t:10, r:10, b:30, l:45 };
+  svg.attr('width', W).attr('height', H);
+  const w = W - pad.l - pad.r, h = H - pad.t - pad.b;
+  const g = svg.append('g').attr('transform', \`translate(\${pad.l},\${pad.t})\`);
 
-${chronics.length ? `<h2>Chronic Actors (Present 70%+ of Runs)</h2>
-<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : ''}
+  const dates = data.map(d => new Date(d.date));
+  const x = d3.scaleTime().domain(d3.extent(dates)).range([0, w]);
+  const maxY = d3.max(data, d => Math.max(d.crit, d.high)) * 1.1 || 10;
+  const y = d3.scaleLinear().domain([0, maxY]).range([h, 0]);
 
-<h2>All Actors Observed</h2>
-<table>
-  <thead><tr><th>Actor</th><th>First Seen</th><th>Last Seen</th><th>Runs Present</th></tr></thead>
-  <tbody>${Object.entries(actorTimeline).sort((a,b)=>b[1].count-a[1].count).map(([name,v])=>`
-    <tr><td style="font-family:monospace;font-size:12px">${name}</td><td>${v.first}</td><td>${v.last}</td><td>${v.count} / ${runs.length}</td></tr>`).join('')}
-  </tbody>
-</table>
+  // Grid
+  g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(4).tickSize(-w).tickFormat(''));
 
-<div class="footer">BlueFlag Security Threat Dashboard · Confidential · ${tenant.url}</div>
+  // Areas
+  const areaCrit = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.crit)).curve(d3.curveMonotoneX);
+  const areaHigh = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.high)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('class','chart-area-high').attr('d',areaHigh);
+  g.append('path').datum(data).attr('class','chart-area-crit').attr('d',areaCrit);
+
+  // Lines
+  const lineCrit = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.crit)).curve(d3.curveMonotoneX);
+  const lineHigh = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.high)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('class','chart-line-high').attr('d',lineHigh);
+  g.append('path').datum(data).attr('class','chart-line-crit').attr('d',lineCrit);
+
+  // Axes
+  g.append('g').attr('class','axis').attr('transform',\`translate(0,\${h})\`).call(d3.axisBottom(x).ticks(Math.min(data.length,6)).tickFormat(d3.timeFormat('%b %d')));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',d')));
+})();
+
+// ── Sankey Chart ─────────────────────────────────────────────────
+(function() {
+  const raw = ${sankeyData || 'null'};
+  if (!raw || !raw.nodes.length) return;
+  const svg = d3.select('#sankeyChart');
+  const W = svg.node().parentElement.clientWidth - 48;
+  const H = 200;
+  svg.attr('width', W).attr('height', H);
+
+  const sk = d3.sankey().nodeWidth(14).nodePadding(8).extent([[1,4],[W-80,H-4]]);
+  let { nodes, links } = sk({ nodes: raw.nodes.map(d=>({...d})), links: raw.links.map(d=>({...d})) });
+
+  const color = n => {
+    if (n.name==='Critical') return '#e05252';
+    if (n.name==='High')     return '#e07d22';
+    return '#1550FF';
+  };
+
+  svg.append('g').selectAll('rect').data(nodes).join('rect')
+    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(1,d.y1-d.y0))
+    .attr('fill',color).attr('rx',3).attr('opacity',.85);
+
+  svg.append('g').attr('fill','none').selectAll('path').data(links).join('path')
+    .attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=>color(nodes[d.target.index||d.target]))
+    .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.25);
+
+  svg.append('g').selectAll('text').data(nodes).join('text')
+    .attr('x',d=>d.x0<W/2?d.x1+6:d.x0-6).attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
+    .attr('text-anchor',d=>d.x0<W/2?'start':'end')
+    .attr('font-size',10).attr('font-family','monospace').attr('fill','#555').text(d=>d.name);
+})();
+</script>
 </body></html>`;
 
   res.setHeader('Content-Type', 'text/html');
