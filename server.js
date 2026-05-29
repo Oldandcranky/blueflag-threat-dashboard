@@ -100,6 +100,156 @@ app.delete('/api/snapshots/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Actor History — new vs returning across all runs ─────────────────────────
+app.get('/api/history/:id', (req, res) => {
+  const histDir = path.join(snapDir, 'history', req.params.id);
+  if (!fs.existsSync(histDir)) return res.json({ runs: [], actors: {} });
+
+  const files = fs.readdirSync(histDir).filter(f => f.endsWith('.json')).sort();
+  const actorMap = {}; // actor → { firstSeen, lastSeen, runCount, ratings[] }
+
+  for (const f of files) {
+    const date = f.slice(0, 10);
+    try {
+      const snap = JSON.parse(fs.readFileSync(path.join(histDir, f), 'utf8'));
+      const actors = new Set([
+        ...(snap.behaviors||[]).map(b=>b.user).filter(Boolean),
+        ...Object.keys(snap.identities||{})
+      ]);
+      for (const actor of actors) {
+        if (!actorMap[actor]) actorMap[actor] = { firstSeen: date, lastSeen: date, runCount: 0, ratings: [] };
+        actorMap[actor].lastSeen = date;
+        actorMap[actor].runCount++;
+        const rating = snap.identities?.[actor]?.riskRating;
+        if (rating) actorMap[actor].ratings.push(rating);
+      }
+    } catch {}
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const totalRuns = files.length;
+  const actors = Object.entries(actorMap).map(([name, d]) => {
+    const daysSinceFirst = Math.floor((Date.now() - new Date(d.firstSeen)) / 86400000);
+    let status;
+    if (d.firstSeen === today)                status = 'new';
+    else if (daysSinceFirst < 7)              status = 'recent';
+    else if (daysSinceFirst < 30)             status = 'persistent';
+    else                                       status = 'chronic';
+    const topRating = ['Critical','High','Medium','Low'].find(r => d.ratings.includes(r)) || 'Unknown';
+    return { name, firstSeen: d.firstSeen, lastSeen: d.lastSeen, runCount: d.runCount, totalRuns, status, daysSinceFirst, topRating };
+  }).sort((a,b) => b.daysSinceFirst - a.daysSinceFirst);
+
+  res.json({ runs: files.map(f=>f.slice(0,10)), actors });
+});
+
+// ── Engagement Arc — full risk journey HTML leave-behind ──────────────────────
+app.get('/api/arc/:id', (req, res) => {
+  const cfg     = readConfig();
+  const tenant  = (cfg.tenants||[]).find(t=>t.id===req.params.id);
+  const histDir = path.join(snapDir, 'history', req.params.id);
+  if (!tenant || !fs.existsSync(histDir)) return res.status(404).send('No history found');
+
+  const files = fs.readdirSync(histDir).filter(f=>f.endsWith('.json')).sort();
+  if (!files.length) return res.status(404).send('No history found');
+
+  const runs = files.map(f => {
+    const date = f.slice(0,10);
+    try {
+      const s = JSON.parse(fs.readFileSync(path.join(histDir, f), 'utf8'));
+      const crit = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.critical||0),0);
+      const high = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.high||0),0);
+      const actors = [...new Set([...(s.behaviors||[]).map(b=>b.user).filter(Boolean)])];
+      return { date, crit, high, actors, actorCount: actors.length };
+    } catch { return null; }
+  }).filter(Boolean);
+
+  // Build actor timeline
+  const actorTimeline = {};
+  for (const run of runs) {
+    for (const actor of run.actors) {
+      if (!actorTimeline[actor]) actorTimeline[actor] = { first: run.date, last: run.date, count: 0 };
+      actorTimeline[actor].last = run.date;
+      actorTimeline[actor].count++;
+    }
+  }
+  const chronics = Object.entries(actorTimeline).filter(([,v])=>v.count>=runs.length*0.7).map(([k])=>k);
+  const resolved = Object.entries(actorTimeline).filter(([,v])=>{
+    const lastRun = runs.at(-1);
+    return lastRun && !lastRun.actors.includes(k) && v.count > 1;
+  }).map(([k])=>k);
+
+  const firstRun = runs[0], lastRun = runs.at(-1);
+  const engagementDays = Math.floor((new Date(lastRun.date)-new Date(firstRun.date))/86400000)+1;
+
+  const rowsHTML = runs.map((r,i) => {
+    const prev = runs[i-1];
+    const critDelta = prev ? r.crit - prev.crit : 0;
+    const critStr = critDelta > 0 ? `<span style="color:#e05252">+${critDelta}</span>` : critDelta < 0 ? `<span style="color:#52c48a">${critDelta}</span>` : '—';
+    return `<tr>
+      <td>${r.date}</td>
+      <td>${r.crit}</td>
+      <td>${critStr}</td>
+      <td>${r.high}</td>
+      <td>${r.actorCount}</td>
+      <td style="font-size:11px;color:#888">${r.actors.slice(0,3).join(', ')}${r.actors.length>3?` +${r.actors.length-3} more`:''}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${tenant.name} — BlueFlag Security Engagement Arc</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 40px auto; padding: 0 24px; color: #1a1a2e; background: #fff; }
+  h1 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+  .meta { font-size: 13px; color: #666; margin-bottom: 32px; }
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 32px; }
+  .kpi { background: #f5f7ff; border: 1px solid #e0e4f0; border-radius: 8px; padding: 16px 20px; flex: 1; }
+  .kpi-val { font-size: 28px; font-weight: 800; color: #1550FF; font-family: monospace; }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #888; margin-top: 4px; }
+  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #888; margin: 28px 0 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+  th { text-align: left; padding: 8px 10px; background: #f5f7ff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #666; border-bottom: 2px solid #e0e4f0; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover td { background: #fafbff; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .tag.chronic { background: #ffe8e8; color: #c0392b; }
+  .tag.resolved { background: #e8f8ee; color: #27ae60; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #eee; font-size: 11px; color: #aaa; }
+</style></head><body>
+<h1>${tenant.name} — Security Engagement Arc</h1>
+<div class="meta">BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · ${engagementDays}-day engagement · ${runs.length} monitoring runs</div>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
+  <div class="kpi"><div class="kpi-val">${runs.length}</div><div class="kpi-label">Runs Completed</div></div>
+  <div class="kpi"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Unique Actors Flagged</div></div>
+  <div class="kpi"><div class="kpi-val">${lastRun.crit}</div><div class="kpi-label">Critical Findings (Latest)</div></div>
+</div>
+
+<h2>Run History</h2>
+<table>
+  <thead><tr><th>Date</th><th>Critical</th><th>Δ Critical</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
+  <tbody>${rowsHTML}</tbody>
+</table>
+
+${chronics.length ? `<h2>Chronic Actors (Present 70%+ of Runs)</h2>
+<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : ''}
+
+<h2>All Actors Observed</h2>
+<table>
+  <thead><tr><th>Actor</th><th>First Seen</th><th>Last Seen</th><th>Runs Present</th></tr></thead>
+  <tbody>${Object.entries(actorTimeline).sort((a,b)=>b[1].count-a[1].count).map(([name,v])=>`
+    <tr><td style="font-family:monospace;font-size:12px">${name}</td><td>${v.first}</td><td>${v.last}</td><td>${v.count} / ${runs.length}</td></tr>`).join('')}
+  </tbody>
+</table>
+
+<div class="footer">BlueFlag Security Threat Dashboard · Confidential · ${tenant.url}</div>
+</body></html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}-arc-${new Date().toISOString().slice(0,10)}.html"`);
+  res.send(html);
+});
+
 // ── Run Stream (SSE) + Stop ───────────────────────────────────────────────────
 let activeProc = null;
 const aiLogClients = new Set();

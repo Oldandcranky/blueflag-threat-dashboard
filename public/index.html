@@ -311,6 +311,17 @@ body.left-collapsed { grid-template-columns:0px 1fr; }
 .dbadge.det-up    { background:var(--high-dim); color:var(--high); border:1px solid rgba(255,149,0,.2); }
 .dbadge.resolved  { background:var(--ok-dim); color:var(--ok); }
 .dbadge.first-run { background:var(--surface2); color:var(--text3); }
+/* ── Actor history timeline ── */
+.actor-hist-group { margin-bottom:12px; }
+.actor-hist-label { font-family:var(--mono); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text3); margin-bottom:5px; }
+.actor-hist-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.ahchip { font-family:var(--mono); font-size:10px; padding:3px 8px; border-radius:4px; }
+.ahchip.new      { background:var(--ok-dim); color:var(--ok); }
+.ahchip.recent   { background:rgba(30,144,255,.12); color:#4da6ff; }
+.ahchip.persistent { background:var(--high-dim); color:var(--high); }
+.ahchip.chronic  { background:var(--crit-dim); color:var(--crit); }
+.arc-btn { margin-top:10px; font-family:var(--mono); font-size:10px; padding:5px 12px; border-radius:5px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); cursor:pointer; transition:all .15s; }
+.arc-btn:hover { border-color:var(--accent); color:var(--accent); }
 @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:.3;} }
 
 /* Actor rows */
@@ -1010,6 +1021,41 @@ function freshLabel(days) {
   return {txt:`${days}d ago`, cls:'red'};
 }
 
+async function buildActorHistoryHTML(tenantId) {
+  try {
+    const r = await fetch(`/api/history/${tenantId}`);
+    const { runs, actors } = await r.json();
+    if (!actors || !actors.length) return '';
+
+    const groups = { new: [], recent: [], persistent: [], chronic: [] };
+    for (const a of actors) groups[a.status]?.push(a);
+
+    const labels = {
+      new:        `🆕 New Today`,
+      recent:     `⚡ Recent (< 7 days)`,
+      persistent: `⚠️ Persistent (7–30 days)`,
+      chronic:    `🔴 Chronic (30+ days)`
+    };
+
+    let html = `<div style="margin-bottom:6px;font-family:var(--mono);font-size:9px;color:var(--text3)">${runs.length} monitoring run${runs.length!==1?'s':''} · first: ${runs[0]} · latest: ${runs.at(-1)}</div>`;
+    for (const [status, label] of Object.entries(labels)) {
+      if (!groups[status].length) continue;
+      html += `<div class="actor-hist-group">
+        <div class="actor-hist-label">${label}</div>
+        <div class="actor-hist-chips">${groups[status].map(a =>
+          `<span class="ahchip ${status}" title="Seen in ${a.runCount}/${a.totalRuns} runs · first: ${a.firstSeen}">${a.name.split(/[-_@]/)[0]}</span>`
+        ).join('')}</div>
+      </div>`;
+    }
+    html += `<button class="arc-btn" onclick="downloadArc('${tenantId}')">↓ Download Engagement Arc</button>`;
+    return html;
+  } catch { return ''; }
+}
+
+function downloadArc(tenantId) {
+  window.open(`/api/arc/${tenantId}`, '_blank');
+}
+
 // ── Delta bar ──────────────────────────────────────────────────────────────────
 function deltaBarHTML(delta) {
   if (!delta) return '';
@@ -1226,10 +1272,17 @@ function renderTenantDetail(id) {
       ${sectionWrap('status', 'Status', statusBody)}
       ${riskBar ? sectionWrap('risk', 'Risk Exposure', `<div class="risk-bar">${riskBar}</div>`) : ''}
       ${ah ? sectionWrap('findings', 'Key Findings', ah) : ''}
+      ${sectionWrap('actor-history', 'Actor History', `<div id="actorHistoryContent-${id}" style="color:var(--text3);font-family:var(--mono);font-size:11px;">Loading history...</div>`)}
       ${sectionWrap('insights', 'Insights', insightsBody)}
     </div>`;
 
   restoreInsightMode(id);
+
+  // Load actor history async — doesn't block the rest of the render
+  buildActorHistoryHTML(id).then(html => {
+    const el = document.getElementById(`actorHistoryContent-${id}`);
+    if (el) el.innerHTML = html || '<span style="color:var(--text3);font-family:var(--mono);font-size:11px;">No history yet — builds after first few runs</span>';
+  });
 
   if (S.config?.claudeApiKey && snap && !S.aiDrafts[id] && !S.aiGenerating[id]) {
     setTimeout(() => generateEmail(id, { auto:true }), 150);
