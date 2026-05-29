@@ -373,14 +373,19 @@ app.get('/api/arc/:id', (req, res) => {
   .tag.chronic { background: #ffe8e8; color: #c0392b; }
   .tag.resolved { background: #e8f8ee; color: #27ae60; }
 
+  /* PDF button */
+  .pdf-btn { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:7px 16px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; float:right; }
+  .pdf-btn:hover { background:rgba(255,255,255,.25); }
   /* Footer */
   .footer { text-align: center; font-size: 11px; color: #bbb; margin-top: 32px; padding-top: 20px; border-top: 1px solid #eee; }
+  @media print { .pdf-btn { display:none; } .header { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .exec-overview { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .section { break-inside:avoid; } }
 </style>
 </head><body>
 <div class="page">
 
   <!-- Header -->
   <div class="header">
+    <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
     <h1>${tenant.name} — Identity Lifecycle Review</h1>
     <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
   </div>
@@ -701,15 +706,30 @@ tr:last-child td { border-bottom:none; }
 /* Sankey */
 #sankeyChart { overflow:visible; }
 
+/* PDF button */
+.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; margin-top:20px; transition:background .15s; }
+.pdf-btn:hover { background:rgba(255,255,255,.25); }
 /* Footer */
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+/* Print styles */
+@media print {
+  body { background:#fff; }
+  .pdf-btn { display:none; }
+  .cover { border-radius:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .card, .section { break-inside:avoid; }
+  .page { padding:0; }
+}
 </style>
 </head><body>
 <div class="page">
 
 <!-- ── COVER ──────────────────────────────────────────────────────────── -->
 <div class="cover">
-  <div class="demo-ribbon">Demo Report</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div class="demo-ribbon">Demo Report</div>
+    <a href="/demo-arc/pdf" class="pdf-btn">↓ Download PDF</a>
+  </div>
   <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
   <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
   <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
@@ -1189,6 +1209,43 @@ function startupCatchupRun() {
   }
 }
 startupCatchupRun();
+
+// ── PDF Export — server-side render via Playwright ───────────────────────────
+// Playwright is already installed for scraping, so we reuse it here.
+// The page is loaded internally, D3 is given time to paint, then PDF is captured.
+async function renderPDF(url, filename, res) {
+  const { chromium } = require('playwright');
+  let browser;
+  try {
+    browser = await chromium.launch({ args: ['--no-sandbox','--disable-dev-shm-usage'] });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.goto(url, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500); // let D3 finish rendering
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdf);
+  } catch (e) {
+    res.status(500).send(`PDF generation failed: ${e.message}`);
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+app.get('/demo-arc/pdf', (req, res) => {
+  renderPDF(`http://localhost:${3737}/demo-arc`, `identity-lifecycle-review-demo-${new Date().toISOString().slice(0,10)}.pdf`, res);
+});
+
+app.get('/api/arc/:id/pdf', (req, res) => {
+  const cfg = readConfig();
+  const tenant = (cfg.tenants||[]).find(t=>t.id===req.params.id);
+  const name = tenant ? tenant.name.toLowerCase().replace(/[^a-z0-9]/g,'-') : req.params.id;
+  renderPDF(`http://localhost:${3737}/api/arc/${req.params.id}`, `${name}-identity-lifecycle-review-${new Date().toISOString().slice(0,10)}.pdf`, res);
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = 3737;
