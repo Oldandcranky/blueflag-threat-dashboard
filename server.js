@@ -316,6 +316,17 @@ app.get('/api/arc/:id', (req, res) => {
     return JSON.stringify({ nodes, links: Object.values(merged) });
   })();
 
+  const topViolBar = topPolicies.slice(0,6).map(p => {
+    const maxV = topPolicies[0]?.totalViolations || 1;
+    const pct = Math.round(p.totalViolations / maxV * 100);
+    const c = p.severity==='Critical'?'#e05252':p.severity==='High'?'#e07d22':'#f0b429';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-size:11px;color:#555;width:260px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+      <div style="flex:1;background:#f0f2f8;border-radius:3px;height:8px"><div style="width:${pct}%;height:8px;border-radius:3px;background:${c}"></div></div>
+      <div style="font-family:monospace;font-size:11px;font-weight:700;width:60px;text-align:right;color:${c}">${p.totalViolations.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+
   const html = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
@@ -323,202 +334,197 @@ app.get('/api/arc/:id', (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9ff; color: #1a1a2e; }
-  .page { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
-
-  /* Header */
-  .header { background: linear-gradient(135deg, #0d1e3c 0%, #1550FF 100%); border-radius: 12px; padding: 32px 36px; margin-bottom: 28px; color: #fff; }
-  .header h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
-  .header .sub { font-size: 13px; opacity: .65; font-family: monospace; }
-
-  /* KPIs */
-  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
-  .kpi { background: #fff; border: 1px solid #e0e4f0; border-radius: 10px; padding: 16px 18px; }
-  .kpi-val { font-size: 26px; font-weight: 800; color: #1550FF; font-family: monospace; line-height: 1; margin-bottom: 5px; }
-  .kpi-val.red { color: #e05252; }
-  .kpi-val.green { color: #27ae60; }
-  .kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #999; }
-
-  /* Sections */
-  .section { background: #fff; border: 1px solid #e0e4f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
-  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #999; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
-  /* Charts */
-  #sankeyChart { width: 100%; overflow: visible; }
-  /* Executive Overview */
-  .exec-overview { background:linear-gradient(135deg,#0d1e3c 0%,#1a3a6b 100%); border-radius:10px; padding:24px 28px; margin-bottom:20px; color:#fff; }
-  .exec-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.5); margin-bottom:18px; }
-  .exec-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
-  .exec-kpi { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:12px 14px; }
-  .exec-kpi-val { font-size:20px; font-weight:800; font-family:monospace; color:#fff; line-height:1; margin-bottom:4px; }
-  .exec-kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
-  .exec-body { font-size:13px; line-height:1.7; color:rgba(255,255,255,.8); }
-  .exec-body strong { color:#fff; }
-
-  /* Table */
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; padding: 8px 10px; background: #f8f9ff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #999; border-bottom: 2px solid #eee; }
-  td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; }
-  tr:last-child td { border-bottom: none; }
-
-  /* Actors */
-  .actor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
-  .actor-card { background: #f8f9ff; border: 1px solid #e8ecf8; border-radius: 8px; padding: 12px 14px; }
-  .actor-name { font-family: monospace; font-size: 11px; color: #333; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
-  .actor-meta { font-size: 10px; color: #999; }
-  .actor-bar { height: 3px; background: #eee; border-radius: 2px; margin-top: 8px; }
-  .actor-bar-fill { height: 3px; background: #1550FF; border-radius: 2px; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin: 2px; }
-  .tag.chronic { background: #ffe8e8; color: #c0392b; }
-  .tag.resolved { background: #e8f8ee; color: #27ae60; }
-
-  /* PDF button */
-  .pdf-btn { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:7px 16px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; float:right; }
-  .pdf-btn:hover { background:rgba(255,255,255,.25); }
-  /* Footer */
-  .footer { text-align: center; font-size: 11px; color: #bbb; margin-top: 32px; padding-top: 20px; border-top: 1px solid #eee; }
-  @media print { .pdf-btn { display:none; } .header { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .exec-overview { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .section { break-inside:avoid; } }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f8; color:#1a1a2e; }
+.page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
+.cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:32px; }
+.cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
+.cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; flex-wrap:wrap; }
+.cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
+.cover-meta-val { font-size:14px; font-weight:700; }
+.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; float:right; }
+.pdf-btn:hover { background:rgba(255,255,255,.25); }
+.body { padding:0 40px; }
+.sec-header { display:flex; align-items:center; gap:14px; margin:36px 0 16px; }
+.sec-num { width:32px; height:32px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
+.sec-desc { font-size:12px; color:#888; margin-bottom:16px; line-height:1.6; }
+.card { background:#fff; border:1px solid #e0e4f0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+.kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 18px; }
+.kpi-tile.accent { border-color:#1550FF; background:#f5f8ff; }
+.kpi-val { font-size:28px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:4px; }
+.kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
+.kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; }
+.exec-dark { background:linear-gradient(135deg,#0d1e3c,#1a3a6b); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; }
+.exec-dark-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.4); margin-bottom:16px; }
+.exec-dark p { font-size:13px; line-height:1.75; color:rgba(255,255,255,.8); margin-bottom:10px; }
+.exec-dark strong { color:#fff; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.callout { border-radius:8px; padding:14px 16px; margin-bottom:12px; display:flex; gap:12px; align-items:flex-start; }
+.callout.red { background:#fff5f5; border:1px solid #fecaca; }
+.callout.green { background:#f0fdf4; border:1px solid #bbf7d0; }
+.callout-icon { font-size:18px; flex-shrink:0; }
+.callout-body { font-size:12px; line-height:1.6; color:#444; }
+.callout-body strong { color:#1a1a2e; }
+.sev { font-weight:700; font-size:10px; padding:2px 7px; border-radius:4px; display:inline-block; }
+.sev.C { background:#fee2e2; color:#dc2626; }
+.sev.H { background:#ffedd5; color:#c2410c; }
+.sev.M { background:#fef9c3; color:#a16207; }
+.tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin:2px; }
+.tag.chronic { background:#ffe8e8; color:#c0392b; }
+.tag.resolved { background:#e8f8ee; color:#27ae60; }
+#sankeyChart { overflow:visible; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; border-bottom:2px solid #eee; }
+td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+.footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+@media print { .pdf-btn{display:none;} .cover,.exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} }
 </style>
 </head><body>
 <div class="page">
 
-  <!-- Header -->
-  <div class="header">
-    <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
-    <h1>${tenant.name} — Identity Lifecycle Review</h1>
-    <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+<div class="cover">
+  <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
+  <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+  <div class="cover-title">${tenant.name}<br>Developer Identity Risk Assessment</div>
+  <div class="cover-sub">${tenant.url}</div>
+  <div class="cover-meta">
+    <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
+    <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
+    <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
+    <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+    <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
   </div>
+</div>
 
-  <!-- KPIs -->
-  <div class="kpi-row">
-    <div class="kpi"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
-    <div class="kpi"><div class="kpi-val">${runs.length}</div><div class="kpi-label">Monitoring Runs</div></div>
-    <div class="kpi"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
-    <div class="kpi"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Unique Actors</div></div>
-    <div class="kpi"><div class="kpi-val ${resolved.length ? 'green' : ''}">${resolved.length}</div><div class="kpi-label">Resolved Actors</div></div>
+<div class="body">
+
+<div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
+<div class="kpi-strip">
+  <div class="kpi-tile accent"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
+  <div class="kpi-tile"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
+  <div class="kpi-tile"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Identities Flagged</div></div>
+  <div class="kpi-tile"><div class="kpi-val ${resolved.length?'green':''}">${resolved.length}</div><div class="kpi-label">Resolved</div></div>
+</div>
+<div class="exec-dark">
+  <div class="exec-dark-title">Executive Summary</div>
+  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Over the past <strong style="color:#fff">${engagementDays} days</strong>, BlueFlag Security monitored <strong style="color:#fff">${tenant.name}</strong> across <strong style="color:#fff">${runs.length} daily scans</strong>. Overall, critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
+  ${topThreat ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">The highest-priority finding has been <strong style="color:#fff">${topThreat.name}</strong> (${topThreat.severity}), present across <strong style="color:#fff">${topThreat.runs} of ${runs.length} runs</strong> with <strong style="color:#fff">${topThreat.totalViolations.toLocaleString()} total violations</strong> affecting ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
+  ${chronicCount > 0 ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8)"><strong style="color:#fff">${chronicCount} ${chronicCount===1?'identity has':'identities have'} appeared in every monitoring run</strong> — indicating structural risks embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong style="color:#fff">${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this period.` : 'No identities have been remediated during this period.'}</p>` : ''}
+</div>
+${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} runs, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
+${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. This demonstrates that BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
+
+<div class="sec-header"><div class="sec-num">2</div><div class="sec-name">Risk Flow — Identities → Policies → Severity</div></div>
+<div class="card">
+  <div class="card-title">Identities → Policies → Severity</div>
+  <svg id="sankeyChart" height="320"></svg>
+</div>
+
+<div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Threats Identified</div></div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Top Violations by Volume</div>
+    ${topViolBar || '<div style="color:#aaa;font-size:12px">No data yet</div>'}
   </div>
-
-  <!-- Sankey full width -->
-  <div class="section" style="margin-bottom:20px">
-    <div class="section-title">Identities → Policies → Severity</div>
-    <svg id="sankeyChart" height="320"></svg>
+  <div class="card">
+    <div class="card-title">Persistent Identities — Present 70%+ of Runs</div>
+    ${chronics.length ? `<div style="margin-bottom:10px">${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px">None — all identities resolved</div>'}
+    ${resolved.length ? `<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>` : ''}
   </div>
+</div>
 
-  ${execOverviewHTML}
+${topPolicies.length ? `
+<div class="card">
+  <div class="card-title">Complete Findings</div>
+  <table>
+    <thead><tr><th>Policy</th><th>Sev</th><th>Violations</th><th>Identities</th><th>Runs</th><th>First</th><th>Last</th></tr></thead>
+    <tbody>${topPolicies.map(p=>{
+      const sc = p.severity==='Critical'?'C':p.severity==='High'?'H':'M';
+      return `<tr>
+        <td style="font-weight:600">${p.name}</td>
+        <td><span class="sev ${sc}">${p.severity}</span></td>
+        <td style="font-family:monospace;font-weight:700">${p.totalViolations.toLocaleString()}</td>
+        <td style="font-size:11px;color:#666">${p.actors.slice(0,3).map(a=>a.split(/[-_@]/)[0]).join(', ')}${p.actors.length>3?` +${p.actors.length-3}`:''}</td>
+        <td style="font-family:monospace">${p.runs}/${runs.length}</td>
+        <td style="font-family:monospace;font-size:10px;color:#aaa">${p.firstSeen}</td>
+        <td style="font-family:monospace;font-size:10px;color:#aaa">${p.lastSeen}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>
+</div>` : ''}
 
-  <!-- Run history table -->
-  <div class="section">
-    <div class="section-title">Run History</div>
-    <table>
-      <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
-      <tbody>${rowsHTML}</tbody>
-    </table>
-  </div>
+<div class="sec-header"><div class="sec-num">4</div><div class="sec-name">Identity Detail</div></div>
+${Object.entries(actorPolicyMap).sort((a,b)=>{
+  const sA=Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
+  const sB=Math.min(...Object.values(b[1]).map(p=>sevOrder[p.severity]||9));
+  return sA-sB;
+}).map(([actor,policies])=>{
+  const sorted=Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
+  const topSev=sorted[0]?.[1]?.severity||'Medium';
+  const sc=topSev==='Critical'?'C':topSev==='High'?'H':'M';
+  const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
+  const tl=actorTimeline[actor]||{};
+  return `<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div><div style="font-family:monospace;font-size:13px;font-weight:700">${actor}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs</div></div>
+      <span class="sev ${sc}" style="font-size:11px;padding:3px 10px">${topSev}</span>
+    </div>
+    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
+    <tbody>${sorted.map(([p,d])=>{
+      const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
+      return `<tr><td>${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace">${d.maxViolations.toLocaleString()}</td></tr>`;
+    }).join('')}</tbody></table>
+  </div>`;
+}).join('')}
 
-  <!-- Actors -->
-  ${chronics.length ? `<div class="section">
-    <div class="section-title">🔴 Chronic Actors — Present in 70%+ of Runs</div>
-    <div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>
-  </div>` : ''}
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Run History</div></div>
+<div class="card">
+  <table>
+    <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
+    <tbody>${rowsHTML}</tbody>
+  </table>
+</div>
 
-  ${resolved.length ? `<div class="section">
-    <div class="section-title">✅ Resolved Actors — No Longer Active</div>
-    <div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>
-  </div>` : ''}
+</div>
 
-  <!-- Threats identified -->
-  ${topPolicies.length ? `<div class="section">
-    <div class="section-title">🎯 Threats Identified During Engagement</div>
-    <table>
-      <thead><tr><th>Finding / Policy</th><th>Severity</th><th>Total Violations</th><th>Actors Affected</th><th>Runs Present</th><th>First Seen</th><th>Last Seen</th></tr></thead>
-      <tbody>${topPolicies.map(p => {
-        const sevColor = p.severity==='Critical'?'#e05252':p.severity==='High'?'#e07d22':p.severity==='Medium'?'#f0b429':'#888';
-        return `<tr>
-          <td style="font-weight:600;max-width:300px">${p.name}</td>
-          <td><span style="color:${sevColor};font-weight:700;font-size:11px">${p.severity}</span></td>
-          <td style="font-family:monospace;font-weight:700;color:#333">${p.totalViolations.toLocaleString()}</td>
-          <td style="font-size:11px;color:#666">${p.actors.slice(0,3).map(a=>a.split(/[-_@]/)[0]).join(', ')}${p.actors.length>3?` +${p.actors.length-3}`:''}</td>
-          <td style="font-family:monospace">${p.runs} / ${runs.length}</td>
-          <td style="font-family:monospace;font-size:11px;color:#999">${p.firstSeen}</td>
-          <td style="font-family:monospace;font-size:11px;color:#999">${p.lastSeen}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-  </div>` : ''}
-
-  <!-- Per-actor threat detail -->
-  <div class="section">
-    <div class="section-title">👤 Actor Threat Detail</div>
-    ${Object.entries(actorPolicyMap).sort((a,b) => {
-      const sevA = Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
-      const sevB = Math.min(...Object.values(b[1]).map(p=>sevOrder[p.severity]||9));
-      return sevA - sevB;
-    }).map(([actor, policies]) => {
-      const sortedPolicies = Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
-      const topSev = sortedPolicies[0]?.[1]?.severity || 'Medium';
-      const sevColor = topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
-      const timeline = actorTimeline[actor] || {};
-      return `<div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-          <div>
-            <div style="font-family:monospace;font-size:12px;font-weight:700;color:#1a1a2e">${actor}</div>
-            <div style="font-size:10px;color:#999;margin-top:2px">First seen: ${timeline.first||'—'} · Last seen: ${timeline.last||'—'} · ${timeline.count||0}/${runs.length} runs</div>
-          </div>
-          <span style="color:${sevColor};font-weight:800;font-size:11px;background:${sevColor}18;padding:3px 10px;border-radius:6px">${topSev}</span>
-        </div>
-        <table style="margin:0">
-          <thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations (single run)</th></tr></thead>
-          <tbody>${sortedPolicies.map(([p, d])=>{
-            const c = d.severity==='Critical'?'#e05252':d.severity==='High'?'#e07d22':d.severity==='Medium'?'#f0b429':'#888';
-            return `<tr><td>${p}</td><td style="color:${c};font-weight:700;font-size:11px">${d.severity}</td><td style="font-family:monospace">${d.maxViolations.toLocaleString()}</td></tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <div class="footer">BlueFlag Security Threat Dashboard · Confidential · ${tenant.url}</div>
+<div class="footer-bar">
+  <span>BlueFlag Security · Identity Lifecycle Review · Confidential · ${tenant.url}</span>
+  <span>Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
+</div>
 </div>
 
 <script>
-// ── Sankey: Identities → Policies → Severity ─────────────────────
 (function() {
   const raw = ${sankeyData || 'null'};
   if (!raw || !raw.nodes.length) return;
   const svg = d3.select('#sankeyChart');
   const W = svg.node().parentElement.clientWidth - 48;
   const H = 320;
-  svg.attr('width', W).attr('height', H);
-
+  svg.attr('width', W).attr('height', H).style('overflow','visible');
   const sk = d3.sankey().nodeWidth(14).nodePadding(6).extent([[1,4],[W-120,H-4]]);
   let { nodes, links } = sk({ nodes: raw.nodes.map(d=>({...d})), links: raw.links.map(d=>({...d})) });
-
-  // Color by column position
   const maxX = Math.max(...nodes.map(n=>n.x0));
-  const color = n => {
-    if (n.name==='Critical') return '#e05252';
-    if (n.name==='High')     return '#e07d22';
-    if (n.name==='Medium')   return '#f0b429';
-    if (n.x0 === maxX)       return '#e05252';
-    if (n.x0 === 0)          return '#1550FF';
-    return '#6b7db3';
-  };
-
+  const minX = Math.min(...nodes.map(n=>n.x0));
+  const color = n => n.name==='Critical'?'#e05252':n.name==='High'?'#e07d22':n.name==='Medium'?'#f0b429':n.x0===minX?'#1550FF':'#6b7db3';
   svg.append('g').selectAll('rect').data(nodes).join('rect')
     .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
     .attr('fill',color).attr('rx',3).attr('opacity',.9);
-
   svg.append('g').attr('fill','none').selectAll('path').data(links).join('path')
-    .attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=>color(nodes[d.target.index||d.target]))
+    .attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=>color(d.target))
     .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.25);
-
-  const minX = Math.min(...nodes.map(n=>n.x0));
   svg.append('g').selectAll('text').data(nodes).join('text')
     .attr('x',d=>d.x0===minX?d.x1+6:d.x0===maxX?d.x1+6:d.x0-6)
     .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
-    .attr('text-anchor',d=>d.x0===minX?'start':d.x0===maxX?'start':'end')
-    .attr('font-size',9).attr('font-family','monospace').attr('fill','#444')
-    .attr('max-width',100).text(d=>d.name);
+    .attr('text-anchor',d=>d.x0===minX||d.x0===maxX?'start':'end')
+    .attr('font-size',9).attr('font-family','monospace').attr('fill','#444').text(d=>d.name);
 })();
 </script>
 </body></html>`;
