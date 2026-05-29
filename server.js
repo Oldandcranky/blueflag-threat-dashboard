@@ -593,272 +593,407 @@ app.get('/demo-arc', (req, res) => {
   const demo = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
-<title>Acme Corp — Identity Lifecycle Review (Demo)</title>
+<title>Acme Corp — Identity Lifecycle Review</title>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f8f9ff; color:#1a1a2e; }
-  .page { max-width:1100px; margin:0 auto; padding:40px 32px 60px; }
-  .demo-banner { background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:10px 16px; font-size:12px; color:#856404; margin-bottom:20px; font-weight:600; }
-  .header { background:linear-gradient(135deg,#0d1e3c 0%,#1550FF 100%); border-radius:12px; padding:32px 36px; margin-bottom:28px; color:#fff; }
-  .header h1 { font-size:26px; font-weight:800; margin-bottom:4px; }
-  .header .sub { font-size:13px; opacity:.65; font-family:monospace; }
-  .kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:28px; }
-  .kpi { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 18px; }
-  .kpi-val { font-size:26px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:5px; }
-  .kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
-  .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; }
-  .section { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:20px 24px; margin-bottom:20px; }
-  .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#999; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
-  table { width:100%; border-collapse:collapse; font-size:12px; }
-  th { text-align:left; padding:8px 10px; background:#f8f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
-  td { padding:8px 10px; border-bottom:1px solid #f5f5f5; }
-  tr:last-child td { border-bottom:none; }
-  .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin:2px; }
-  .tag.chronic { background:#ffe8e8; color:#c0392b; }
-  .tag.resolved { background:#e8f8ee; color:#27ae60; }
-  .actor-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
-  .actor-card { background:#f8f9ff; border:1px solid #e8ecf8; border-radius:8px; padding:12px 14px; }
-  .actor-name { font-family:monospace; font-size:11px; color:#333; font-weight:600; margin-bottom:4px; word-break:break-all; }
-  .actor-meta { font-size:10px; color:#999; }
-  .actor-bar { height:3px; background:#eee; border-radius:2px; margin-top:8px; }
-  .actor-bar-fill { height:3px; background:#1550FF; border-radius:2px; }
-  #sankeyChart { overflow:visible; }
-  .exec-overview { background:linear-gradient(135deg,#0d1e3c 0%,#1a3a6b 100%); border-radius:10px; padding:24px 28px; margin-bottom:20px; color:#fff; }
-  .exec-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.5); margin-bottom:18px; }
-  .exec-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
-  .exec-kpi { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:12px 14px; }
-  .exec-kpi-val { font-size:20px; font-weight:800; font-family:monospace; color:#fff; line-height:1; margin-bottom:4px; }
-  .exec-kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
-  .exec-body { font-size:13px; line-height:1.7; color:rgba(255,255,255,.8); }
-  .exec-body strong { color:#fff; }
-  .footer { text-align:center; font-size:11px; color:#bbb; margin-top:32px; padding-top:20px; border-top:1px solid #eee; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f8; color:#1a1a2e; }
+.page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
+
+/* Cover */
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
+.cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:32px; }
+.cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
+.cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; }
+.cover-meta-item { }
+.cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
+.cover-meta-val { font-size:14px; font-weight:700; }
+.demo-ribbon { background:#ffc107; color:#1a1a2e; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:4px 14px; border-radius:3px; display:inline-block; margin-bottom:20px; }
+
+/* Body */
+.body { padding:0 40px; }
+
+/* Section headers — SLR style */
+.sec-header { display:flex; align-items:center; gap:14px; margin:36px 0 16px; }
+.sec-num { width:32px; height:32px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
+.sec-desc { font-size:12px; color:#888; margin-bottom:16px; line-height:1.6; }
+
+/* Cards */
+.card { background:#fff; border:1px solid #e0e4f0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+
+/* KPI strips */
+.kpi-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+.kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 18px; }
+.kpi-tile.accent { border-color:#1550FF; background:#f5f8ff; }
+.kpi-val { font-size:28px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:4px; }
+.kpi-val.red { color:#e05252; }
+.kpi-val.amber { color:#e07d22; }
+.kpi-val.green { color:#27ae60; }
+.kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; }
+
+/* Exec overview */
+.exec-dark { background:linear-gradient(135deg,#0d1e3c,#1a3a6b); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; }
+.exec-dark-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.4); margin-bottom:16px; }
+.exec-dark p { font-size:13px; line-height:1.75; color:rgba(255,255,255,.8); margin-bottom:10px; }
+.exec-dark strong { color:#fff; }
+
+/* Two-col layout */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+
+/* Risk breakdown bars */
+.risk-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.risk-label { font-size:11px; color:#555; width:220px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.risk-bar-wrap { flex:1; background:#f0f2f8; border-radius:3px; height:8px; }
+.risk-bar-inner { height:8px; border-radius:3px; }
+.risk-count { font-family:monospace; font-size:11px; font-weight:700; width:60px; text-align:right; flex-shrink:0; }
+
+/* Identity type badges */
+.id-type { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:600; margin:4px; }
+.id-type.human { background:#e8f0ff; color:#1550FF; border:1px solid #c0d0ff; }
+.id-type.svc { background:#fff8e8; color:#b45309; border:1px solid #fcd34d; }
+.id-type.ai { background:#f5f0ff; color:#7c3aed; border:1px solid #d0b0ff; }
+
+/* Callout box */
+.callout { border-radius:8px; padding:14px 16px; margin-bottom:12px; display:flex; gap:12px; align-items:flex-start; }
+.callout.red { background:#fff5f5; border:1px solid #fecaca; }
+.callout.amber { background:#fffbeb; border:1px solid #fde68a; }
+.callout.purple { background:#f5f0ff; border:1px solid #ddd6fe; }
+.callout.green { background:#f0fdf4; border:1px solid #bbf7d0; }
+.callout-icon { font-size:18px; flex-shrink:0; }
+.callout-body { font-size:12px; line-height:1.6; color:#444; }
+.callout-body strong { color:#1a1a2e; }
+
+/* Benchmark bar */
+.benchmark { background:#f8f9ff; border:1px solid #e8ecf8; border-radius:8px; padding:14px 16px; margin-bottom:12px; }
+.benchmark-title { font-size:10px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+.bench-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.bench-label { font-size:11px; color:#666; width:140px; flex-shrink:0; }
+.bench-bar-wrap { flex:1; background:#eee; border-radius:3px; height:10px; position:relative; }
+.bench-bar { height:10px; border-radius:3px; }
+.bench-marker { position:absolute; top:-3px; width:2px; height:16px; background:#1550FF; border-radius:1px; }
+.bench-val { font-family:monospace; font-size:11px; font-weight:700; width:50px; text-align:right; flex-shrink:0; }
+
+/* Table */
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; border-bottom:2px solid #eee; }
+td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+.sev { font-weight:700; font-size:10px; padding:2px 7px; border-radius:4px; display:inline-block; }
+.sev.C { background:#fee2e2; color:#dc2626; }
+.sev.H { background:#ffedd5; color:#c2410c; }
+.sev.M { background:#fef9c3; color:#a16207; }
+
+/* Rec section */
+.rec-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+.rec-item:last-child { border-bottom:none; }
+.rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.rec-body { flex:1; }
+.rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:3px; }
+.rec-desc { font-size:12px; color:#666; line-height:1.55; }
+.rec-meta { font-size:10px; color:#aaa; margin-top:4px; font-family:monospace; }
+
+/* Sankey */
+#sankeyChart { overflow:visible; }
+
+/* Footer */
+.footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
 </style>
 </head><body>
 <div class="page">
 
-<div class="demo-banner">⚠️ DEMO REPORT — Fictional company, real BlueFlag policy data. For illustrative purposes only.</div>
-
-<div class="header">
-  <h1>Acme Corp — Identity Lifecycle Review</h1>
-  <div class="sub">acme.blueflagsecurity.com · BlueFlag Security · 30-Day Engagement · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+<!-- ── COVER ──────────────────────────────────────────────────────────── -->
+<div class="cover">
+  <div class="demo-ribbon">Demo Report</div>
+  <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+  <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
+  <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">Acme Corp</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">Apr 30 – May 29, 2026</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">30 Daily Scans</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+  </div>
 </div>
 
-<div class="kpi-row">
-  <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
-  <div class="kpi"><div class="kpi-val">30</div><div class="kpi-label">Monitoring Runs</div></div>
-  <div class="kpi"><div class="kpi-val red">401</div><div class="kpi-label">Critical Findings</div></div>
-  <div class="kpi"><div class="kpi-val">12</div><div class="kpi-label">Unique Identities Flagged</div></div>
-  <div class="kpi"><div class="kpi-val green">2</div><div class="kpi-label">Resolved</div></div>
+<div class="body">
+
+<!-- ── SECTION 1: EXECUTIVE SUMMARY ──────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
+<p class="sec-desc">A high-level snapshot of Acme Corp's developer identity risk posture over 30 days of continuous monitoring. This section summarizes the key findings, risk trajectory, and critical actions required.</p>
+
+<div class="kpi-strip">
+  <div class="kpi-tile accent"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
+  <div class="kpi-tile"><div class="kpi-val red">401</div><div class="kpi-label">Critical Findings</div></div>
+  <div class="kpi-tile"><div class="kpi-val amber">847</div><div class="kpi-label">High Findings</div></div>
+  <div class="kpi-tile"><div class="kpi-val">12</div><div class="kpi-label">Identities Flagged</div></div>
+  <div class="kpi-tile"><div class="kpi-val green">2</div><div class="kpi-label">Resolved</div></div>
 </div>
 
-<!-- Sankey -->
-<div class="section">
-  <div class="section-title">Identities → Policies → Severity</div>
+<div class="exec-dark">
+  <div class="exec-dark-title">Executive Summary</div>
+  <p>Over 30 days of continuous monitoring, BlueFlag Security identified <strong>persistent, unresolved developer identity risks</strong> across Acme Corp's GitHub and Azure DevOps environments. Critical findings have remained stable between 271–321 throughout the engagement, indicating that while threats were flagged early, <strong>remediation actions have not been taken</strong>.</p>
+  <p>The most significant finding is <strong>4,821 Terraform misconfigurations</strong> spread across 3 identities — present in every single monitoring run. Left unaddressed, these represent direct pathways to infrastructure compromise. Additionally, BlueFlag detected a <strong>new threat class emerging from AI tooling</strong>: three agentic service accounts (GitHub Copilot, Claude Code, and Lovable) generated 584 unverified configuration changes with no CI enforcement — an attack surface that most organizations are not yet monitoring.</p>
+  <p>Two identities were successfully remediated during the engagement, demonstrating that the BlueFlag monitoring signal is actionable and effective when teams engage with findings promptly.</p>
+</div>
+
+<div class="callout red">
+  <div class="callout-icon">🔴</div>
+  <div class="callout-body"><strong>Critical Action Required:</strong> 8 identities have appeared in every monitoring run with no remediation. Terraform misconfigurations (4,821 violations) and branch protection bypasses (312 violations) represent the highest-priority items for immediate attention by the security and engineering teams.</div>
+</div>
+
+<!-- ── SECTION 2: RISK FLOW ────────────────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">2</div><div class="sec-name">Risk Flow — Identities → Policies → Severity</div></div>
+<p class="sec-desc">The Sankey diagram below maps each flagged identity to the specific policies they violated, and the resulting severity distribution. Wider flows indicate higher violation counts. AI agent identities are highlighted in color.</p>
+
+<div class="card">
+  <div class="card-title">Identities → Policies → Severity</div>
   <svg id="sankeyChart" height="420"></svg>
 </div>
 
-<!-- Executive Overview -->
-<div class="exec-overview">
-  <div class="exec-title">Executive Overview</div>
-  <div class="exec-kpis">
-    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#f39c12">→ Stable</div><div class="exec-kpi-label">Risk Trajectory</div></div>
-    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">401</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
-    <div class="exec-kpi"><div class="exec-kpi-val">8</div><div class="exec-kpi-label">Persistent Identities</div></div>
-    <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">2</div><div class="exec-kpi-label">Resolved This Period</div></div>
-    <div class="exec-kpi"><div class="exec-kpi-val">30</div><div class="exec-kpi-label">Days Under Monitoring</div></div>
+<!-- ── SECTION 3: EXECUTIVE OVERVIEW ──────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Executive Overview</div></div>
+<p class="sec-desc">Risk trajectory, benchmarking against comparable development organizations, and identity distribution breakdown.</p>
+
+<div class="exec-dark">
+  <div class="exec-dark-title">Risk Trajectory & Context</div>
+  <p>Acme Corp's risk posture is <strong style="color:#f39c12">→ Stable</strong> over the 30-day period — critical findings opened at 312 and closed at 284, a modest improvement of 9% driven by the resolution of 2 identities. However, <strong>8 chronic identities remain fully unaddressed</strong>, meaning the underlying risk exposure has not materially improved. Without intervention, the trajectory will shift to <strong>Worsening</strong> as AI tooling continues to expand its footprint in the codebase.</p>
+  <p>Three agentic AI service accounts introduced during this period now represent <strong>31% of all critical violations observed</strong> — a proportion that will grow as AI coding tools proliferate across the development team.</p>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Identity Type Distribution</div>
+    <div style="margin-bottom:12px">
+      <div class="id-type human">👤 Human Developers <strong style="margin-left:6px">5</strong></div>
+      <div class="id-type svc">⚙️ Service Accounts <strong style="margin-left:6px">4</strong></div>
+      <div class="id-type ai">🤖 Agentic AI Accounts <strong style="margin-left:6px">3</strong></div>
+    </div>
+    <div style="font-size:11px;color:#888;line-height:1.6">Human developers account for <strong>67%</strong> of critical violations. AI agents, introduced mid-engagement, now contribute <strong>31%</strong> of total critical findings despite being present for less than the full monitoring period.</div>
   </div>
-  <div class="exec-body">
-    <p>Over the past <strong>30 days</strong>, BlueFlag Security monitored <strong>Acme Corp</strong> across <strong>30 daily scans</strong>. The overall risk posture is <strong style="color:#f39c12">stable</strong> — critical findings have remained consistently elevated between 271 and 321, with no significant reduction indicating that underlying issues have not been remediated.</p>
-    <p style="margin-top:10px">The highest-priority finding throughout this engagement has been <strong>Terraform files with critical or high misconfigurations</strong> (Critical), which fired across <strong>all 30 monitoring runs</strong> with <strong>4,821 total violations</strong> affecting 3 identities. This represents a persistent, unresolved exposure in your infrastructure-as-code pipeline that warrants immediate attention.</p>
-    <p style="margin-top:10px"><strong>8 identities have appeared in every monitoring run</strong> — indicating these are not transient issues but structural risks embedded in the development workflow. Of particular concern are three agentic AI service accounts (<strong>copilot-bot</strong>, <strong>claude-code-svc</strong>, <strong>lovable-bot</strong>) that were granted repository access and have since generated <strong>584 unverified configuration changes</strong> across the engagement. AI tooling operating with write access and no CI enforcement represents an emerging and underappreciated attack surface. Positively, <strong>2 identities were resolved</strong> during this period, demonstrating that remediation is possible when findings are actioned.</p>
+  <div class="card">
+    <div class="card-title">Industry Benchmarking — Similar Dev Orgs (500–2,000 developers)</div>
+    <div class="benchmark">
+      <div class="bench-row">
+        <div class="bench-label">Terraform misconfigs</div>
+        <div class="bench-bar-wrap"><div class="bench-bar" style="width:95%;background:#e05252"></div><div class="bench-marker" style="left:40%"></div></div>
+        <div class="bench-val" style="color:#e05252">4,821</div>
+      </div>
+      <div class="bench-row">
+        <div class="bench-label">Branch protection bypasses</div>
+        <div class="bench-bar-wrap"><div class="bench-bar" style="width:70%;background:#e07d22"></div><div class="bench-marker" style="left:30%"></div></div>
+        <div class="bench-val" style="color:#e07d22">312</div>
+      </div>
+      <div class="bench-row">
+        <div class="bench-label">Stale write-access PATs</div>
+        <div class="bench-bar-wrap"><div class="bench-bar" style="width:45%;background:#f0b429"></div><div class="bench-marker" style="left:50%"></div></div>
+        <div class="bench-val" style="color:#f0b429">89</div>
+      </div>
+      <div style="font-size:9px;color:#aaa;margin-top:8px">Blue marker = industry peer average. Acme Corp is above peer average on infrastructure risk.</div>
+    </div>
   </div>
 </div>
 
-<!-- Run history -->
-<div class="section">
-  <div class="section-title">30-Day Run History</div>
+<!-- ── SECTION 4: INFRASTRUCTURE & CODE SECURITY ──────────────────────── -->
+<div class="sec-header"><div class="sec-num">4</div><div class="sec-name">Infrastructure &amp; Code Security</div></div>
+<p class="sec-desc">Findings related to Terraform misconfiguration, code vulnerability scanning, and CI/CD pipeline integrity. This category produced the highest total violation count of the engagement.</p>
+
+<div class="card">
+  <div class="card-title">Policy Violation Volume — Infrastructure Category</div>
+  <div class="risk-row"><div class="risk-label">Terraform files with critical/high misconfigurations</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:100%;background:#e05252"></div></div><div class="risk-count" style="color:#e05252">4,821</div></div>
+  <div class="risk-row"><div class="risk-label">Code scans with critical/high vulnerabilities</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:34%;background:#e07d22"></div></div><div class="risk-count" style="color:#e07d22">1,640</div></div>
+  <div class="risk-row"><div class="risk-label">Merged PRs with check run failures</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:5%;background:#e07d22"></div></div><div class="risk-count" style="color:#e07d22">231</div></div>
+  <div class="risk-row"><div class="risk-label">Unverified build configuration changes</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:9%;background:#f0b429"></div></div><div class="risk-count" style="color:#f0b429">787</div></div>
+</div>
+
+<div class="callout amber">
+  <div class="callout-icon">⚠️</div>
+  <div class="callout-body"><strong>Key Finding:</strong> autobot-ci logged 1,405 code scan violations across all 30 runs — every daily scan flagged this CI/CD service account. This suggests the pipeline is deploying code with known vulnerabilities without automated blocking gates in place.</div>
+</div>
+
+<!-- ── SECTION 5: CREDENTIAL & ACCESS RISK ────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Credential &amp; Access Risk</div></div>
+<p class="sec-desc">Findings related to exposed secrets, over-privileged access, stale tokens, and branch protection enforcement. These represent direct pathways for unauthorized access or lateral movement.</p>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Credential Exposure</div>
+    <div class="risk-row"><div class="risk-label">Credential in code commit</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:100%;background:#e05252"></div></div><div class="risk-count" style="color:#e05252">59</div></div>
+    <div class="risk-row"><div class="risk-label">Branch protection bypassed</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:100%;background:#e05252"></div></div><div class="risk-count" style="color:#e05252">76</div></div>
+    <div class="risk-row"><div class="risk-label">Stale write-access PATs</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:62%;background:#e07d22"></div></div><div class="risk-count" style="color:#e07d22">89</div></div>
+    <div class="risk-row"><div class="risk-label">PRs approved with no commit history</div><div class="risk-bar-wrap"><div class="risk-bar-inner" style="width:43%;background:#f0b429"></div></div><div class="risk-count" style="color:#f0b429">31</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Notable Identity — k.patel_acme</div>
+    <div style="font-size:12px;line-height:1.7;color:#555">
+      <p><strong>k.patel_acme</strong> holds <strong>admin permissions across 3 repositories</strong> and bypassed branch protection on 22 occasions. This identity also has a personal access token with write access that has been inactive for 30+ days — a dormant credential that represents an easy target for attackers.</p>
+      <p style="margin-top:8px">Combined with PR approval patterns (3 PRs merged without prior commit history on record), this identity presents a high insider-risk and credential-theft surface.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── SECTION 6: AGENTIC AI ACTIVITY ────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Agentic AI Activity — Emerging Threat Vector</div></div>
+<p class="sec-desc">Three AI coding tools were detected operating as autonomous service accounts within Acme Corp's repositories during this engagement. This section details their activity patterns and policy violations — a threat class most organizations are not yet monitoring.</p>
+
+<div class="callout purple">
+  <div class="callout-icon">🤖</div>
+  <div class="callout-body"><strong>What is agentic AI risk?</strong> When AI coding tools (GitHub Copilot, Claude Code, Lovable, etc.) are granted repository write access, they operate as autonomous identities — committing code, merging pull requests, and modifying configuration files without human-in-the-loop review. BlueFlag monitors these service accounts the same way it monitors human developers, surfacing violations that standard SIEM tools miss.</div>
+</div>
+
+<div class="three-col">
+  <div class="card" style="border-top:3px solid #1550FF">
+    <div class="card-title">🤖 copilot-bot — GitHub Copilot</div>
+    <div style="font-size:22px;font-weight:800;color:#e05252;margin-bottom:4px">Critical</div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:12px">30/30 runs · First detected: Apr 30</div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Unverified config commits</div><div class="risk-count" style="color:#e05252">312</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Failed PR check runs</div><div class="risk-count" style="color:#e07d22">44</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">OSS high vulns imported</div><div class="risk-count" style="color:#f0b429">89</div></div>
+  </div>
+  <div class="card" style="border-top:3px solid #7c3aed">
+    <div class="card-title">🤖 claude-code-svc — Claude Code</div>
+    <div style="font-size:22px;font-weight:800;color:#e05252;margin-bottom:4px">Critical</div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:12px">30/30 runs · First detected: Apr 30</div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Unverified config commits</div><div class="risk-count" style="color:#e05252">178</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Terraform misconfigurations</div><div class="risk-count" style="color:#e05252">203</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Credential in commit</div><div class="risk-count" style="color:#e05252">12</div></div>
+  </div>
+  <div class="card" style="border-top:3px solid #c2410c">
+    <div class="card-title">🤖 lovable-bot — Lovable AI</div>
+    <div style="font-size:22px;font-weight:800;color:#e07d22;margin-bottom:4px">High</div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:12px">28/30 runs · First detected: May 1</div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Unverified config commits</div><div class="risk-count" style="color:#e05252">94</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">OSS high vulns imported</div><div class="risk-count" style="color:#e07d22">156</div></div>
+    <div class="risk-row"><div class="risk-label" style="width:auto;flex:1">Failed PR check runs</div><div class="risk-count" style="color:#e07d22">31</div></div>
+  </div>
+</div>
+
+<!-- ── SECTION 7: BEHAVIORAL ANOMALIES ───────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">7</div><div class="sec-name">Behavioral Anomalies</div></div>
+<p class="sec-desc">Unusual activity patterns detected across identities — including repository activity spikes, inactivity followed by sudden bursts, and open source package risk introduced into the codebase.</p>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Notable Behavioral Findings</div>
+    <table>
+      <thead><tr><th>Identity</th><th>Finding</th><th>Sev</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:monospace;font-size:11px">svc-deploy-prod</td><td>Suspicious activity after long repo inactivity</td><td><span class="sev H">High</span></td><td style="font-family:monospace">238</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">svc-deploy-prod</td><td>Suspicious spike on new repositories</td><td><span class="sev H">High</span></td><td style="font-family:monospace">14</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">t.okafor_acme</td><td>OSS packages with high vulnerabilities</td><td><span class="sev M">Med</span></td><td style="font-family:monospace">98</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">j.martinez_acme</td><td>OSS packages with high vulnerabilities</td><td><span class="sev M">Med</span></td><td style="font-family:monospace">314</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">contractor_42</td><td>PRs approved — no prior commit history</td><td><span class="sev M">Med</span></td><td style="font-family:monospace">31</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">30-Day Risk Trend</div>
+    <table>
+      <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>Active IDs</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:monospace;font-size:11px">2026-04-30</td><td style="color:#e05252;font-weight:700">312</td><td style="color:#aaa">—</td><td>9</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">2026-05-07</td><td style="color:#e05252;font-weight:700">315</td><td style="color:#e05252">▲3</td><td>9</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">2026-05-14</td><td style="color:#e05252;font-weight:700">288</td><td style="color:#27ae60">▼27</td><td>8</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">2026-05-21</td><td style="color:#e05252;font-weight:700">284</td><td style="color:#27ae60">▼4</td><td>9</td></tr>
+        <tr><td style="font-family:monospace;font-size:11px">2026-05-29</td><td style="color:#e05252;font-weight:700">284</td><td style="color:#aaa">→</td><td>9</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:#888;margin-top:10px">Overall trend: <strong style="color:#f39c12">Stable</strong>. Two resolutions (May 14) drove the single meaningful drop. No subsequent remediations observed.</div>
+  </div>
+</div>
+
+<!-- ── SECTION 8: FULL FINDINGS TABLE ─────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">8</div><div class="sec-name">Complete Findings</div></div>
+<p class="sec-desc">All policy violations observed during the engagement, sorted by severity and total violation count.</p>
+
+<div class="card">
   <table>
-    <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Active Identities</th></tr></thead>
+    <thead><tr><th>Policy</th><th>Sev</th><th>Violations</th><th>Identities</th><th>Runs</th><th>First</th><th>Last</th></tr></thead>
     <tbody>
-      <tr><td style="font-family:monospace">2026-04-30</td><td><strong style="color:#e05252">312</strong></td><td><span style="color:#aaa">—</span></td><td style="color:#e07d22">891</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-01</td><td><strong style="color:#e05252">318</strong></td><td><span style="color:#e05252">▲6</span></td><td style="color:#e07d22">904</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-02</td><td><strong style="color:#e05252">309</strong></td><td><span style="color:#27ae60">▼9</span></td><td style="color:#e07d22">897</td><td>8</td></tr>
-      <tr><td style="font-family:monospace">2026-05-05</td><td><strong style="color:#e05252">321</strong></td><td><span style="color:#e05252">▲12</span></td><td style="color:#e07d22">912</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-07</td><td><strong style="color:#e05252">315</strong></td><td><span style="color:#27ae60">▼6</span></td><td style="color:#e07d22">889</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-10</td><td><strong style="color:#e05252">298</strong></td><td><span style="color:#27ae60">▼17</span></td><td style="color:#e07d22">876</td><td>8</td></tr>
-      <tr><td style="font-family:monospace">2026-05-12</td><td><strong style="color:#e05252">302</strong></td><td><span style="color:#e05252">▲4</span></td><td style="color:#e07d22">881</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-14</td><td><strong style="color:#e05252">288</strong></td><td><span style="color:#27ae60">▼14</span></td><td style="color:#e07d22">862</td><td>8</td></tr>
-      <tr><td style="font-family:monospace">2026-05-17</td><td><strong style="color:#e05252">291</strong></td><td><span style="color:#e05252">▲3</span></td><td style="color:#e07d22">858</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-19</td><td><strong style="color:#e05252">279</strong></td><td><span style="color:#27ae60">▼12</span></td><td style="color:#e07d22">843</td><td>8</td></tr>
-      <tr><td style="font-family:monospace">2026-05-21</td><td><strong style="color:#e05252">284</strong></td><td><span style="color:#e05252">▲5</span></td><td style="color:#e07d22">851</td><td>9</td></tr>
-      <tr><td style="font-family:monospace">2026-05-24</td><td><strong style="color:#e05252">271</strong></td><td><span style="color:#27ae60">▼13</span></td><td style="color:#e07d22">836</td><td>7</td></tr>
-      <tr><td style="font-family:monospace">2026-05-26</td><td><strong style="color:#e05252">276</strong></td><td><span style="color:#e05252">▲5</span></td><td style="color:#e07d22">829</td><td>8</td></tr>
-      <tr><td style="font-family:monospace">2026-05-29</td><td><strong style="color:#e05252">284</strong></td><td><span style="color:#e05252">▲8</span></td><td style="color:#e07d22">847</td><td>9</td></tr>
+      <tr><td style="font-weight:600">Terraform files with critical or high misconfigurations</td><td><span class="sev C">Critical</span></td><td style="font-family:monospace;font-weight:700">4,821</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy, t.okafor</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr style="background:#fafafe"><td style="font-weight:600">🤖 Unverified build config changes — AI origin</td><td><span class="sev C">Critical</span></td><td style="font-family:monospace;font-weight:700">584</td><td style="font-size:11px;color:#7c3aed">copilot-bot, claude-code-svc, lovable-bot</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">Branch protection bypassed by administrators</td><td><span class="sev C">Critical</span></td><td style="font-family:monospace;font-weight:700">312</td><td style="font-size:11px;color:#666">j.martinez, k.patel</td><td style="font-family:monospace">28/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr style="background:#fafafe"><td style="font-weight:600">🤖 Terraform misconfigs — AI origin (claude-code-svc)</td><td><span class="sev C">Critical</span></td><td style="font-family:monospace;font-weight:700">203</td><td style="font-size:11px;color:#7c3aed">claude-code-svc</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">Credential detected in code commit</td><td><span class="sev C">Critical</span></td><td style="font-family:monospace;font-weight:700">59</td><td style="font-size:11px;color:#666">r.chen, t.okafor, claude-code-svc</td><td style="font-family:monospace">12/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 3</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 27</td></tr>
+      <tr><td style="font-weight:600">Code scans with critical/high vulnerabilities</td><td><span class="sev H">High</span></td><td style="font-family:monospace;font-weight:700">1,640</td><td style="font-size:11px;color:#666">autobot-ci, j.martinez +2</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">Suspicious repo activity after long inactivity</td><td><span class="sev H">High</span></td><td style="font-family:monospace;font-weight:700">238</td><td style="font-size:11px;color:#666">svc-deploy-prod</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">Merged PRs with check run failures</td><td><span class="sev H">High</span></td><td style="font-family:monospace;font-weight:700">231</td><td style="font-size:11px;color:#666">j.martinez, k.patel, copilot-bot, lovable-bot</td><td style="font-family:monospace">22/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 1</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">Personal access tokens inactive 30+ days (write)</td><td><span class="sev H">High</span></td><td style="font-family:monospace;font-weight:700">89</td><td style="font-size:11px;color:#666">k.patel, contractor_42 +3</td><td style="font-family:monospace">25/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 24</td></tr>
+      <tr><td style="font-weight:600">OSS packages with high vulnerabilities</td><td><span class="sev M">Med</span></td><td style="font-family:monospace;font-weight:700">588</td><td style="font-size:11px;color:#666">j.martinez, t.okafor, copilot-bot, lovable-bot</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
+      <tr><td style="font-weight:600">PRs approved by users with no prior commit history</td><td><span class="sev M">Med</span></td><td style="font-family:monospace;font-weight:700">31</td><td style="font-size:11px;color:#666">contractor_42</td><td style="font-family:monospace">14/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 2</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 19</td></tr>
+      <tr><td style="font-weight:600">Identities with multiple risky policy violations</td><td><span class="sev M">Med</span></td><td style="font-family:monospace;font-weight:700">12</td><td style="font-size:11px;color:#666">All flagged identities</td><td style="font-family:monospace">30/30</td><td style="font-family:monospace;font-size:10px;color:#aaa">Apr 30</td><td style="font-family:monospace;font-size:10px;color:#aaa">May 29</td></tr>
     </tbody>
   </table>
 </div>
 
-<!-- Chronic actors -->
-<div class="section">
-  <div class="section-title">🔴 Chronic Identities — Present Every Run</div>
-  <div>
-    <span class="tag chronic">j.martinez_acme</span>
-    <span class="tag chronic">svc-deploy-prod</span>
-    <span class="tag chronic">t.okafor_acme</span>
-    <span class="tag chronic">k.patel_acme</span>
-    <span class="tag chronic">autobot-ci</span>
-    <span class="tag chronic" style="background:#e8f0ff;color:#1550FF;border:1px solid #c0d0ff">🤖 copilot-bot</span>
-    <span class="tag chronic" style="background:#f0e8ff;color:#7c3aed;border:1px solid #d0b0ff">🤖 claude-code-svc</span>
-    <span class="tag chronic" style="background:#fff0e8;color:#c2410c;border:1px solid #ffcba4">🤖 lovable-bot</span>
+<!-- ── SECTION 9: RECOMMENDATIONS ────────────────────────────────────── -->
+<div class="sec-header"><div class="sec-num">9</div><div class="sec-name">Recommendations</div></div>
+<p class="sec-desc">Prioritized remediation actions based on risk severity and likelihood of exploitation. Each recommendation targets a specific finding category observed during this engagement.</p>
+
+<div class="card">
+  <div class="rec-item">
+    <div class="rec-num" style="background:#fee2e2;color:#dc2626">1</div>
+    <div class="rec-body">
+      <div class="rec-title">Remediate Terraform Misconfigurations Immediately</div>
+      <div class="rec-desc">4,821 Terraform violations across j.martinez_acme, svc-deploy-prod, and t.okafor_acme represent the single highest-volume critical finding. Assign ownership to the infrastructure team and establish a mandatory IaC scan gate before any Terraform plan is applied. Target: full resolution within 14 days.</div>
+      <div class="rec-meta">Policies: Terraform files with critical or high misconfigurations · Affected: 3 identities · Violations: 4,821</div>
+    </div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-num" style="background:#fee2e2;color:#dc2626">2</div>
+    <div class="rec-body">
+      <div class="rec-title">Establish Governance Framework for Agentic AI Tools</div>
+      <div class="rec-desc">copilot-bot, claude-code-svc, and lovable-bot are operating with write access and no CI enforcement gate. Immediately audit all AI service account permissions, enforce signed commit requirements, and block PR merges from AI accounts unless a human reviewer has approved the changes. This is an emerging attack surface with no current controls.</div>
+      <div class="rec-meta">Policies: Unverified commit changes, Credential in commit (AI), Failed PR checks · Affected: 3 AI accounts · Violations: 671</div>
+    </div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-num" style="background:#ffedd5;color:#c2410c">3</div>
+    <div class="rec-body">
+      <div class="rec-title">Revoke Stale Personal Access Tokens</div>
+      <div class="rec-desc">89 stale write-access PATs identified across 5+ identities. Dormant credentials with write access are a primary vector for account takeover — attackers acquire old tokens via phishing or credential dumps and use them long after the owner has forgotten they exist. Implement a quarterly PAT rotation policy and revoke all tokens inactive for 30+ days within 7 days.</div>
+      <div class="rec-meta">Policy: Personal access tokens with write access inactive 30+ days · Affected: k.patel, contractor_42 +3</div>
+    </div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-num" style="background:#ffedd5;color:#c2410c">4</div>
+    <div class="rec-body">
+      <div class="rec-title">Enforce Branch Protection Across All Repositories</div>
+      <div class="rec-desc">312 branch protection bypasses by j.martinez_acme and k.patel_acme indicate that administrators are routinely circumventing the one control that prevents unauthorized code from reaching production. Enforce non-bypassable branch protection rules at the organization level and require audit logs for any exception requests.</div>
+      <div class="rec-meta">Policy: Branch protection bypassed by administrators · Affected: j.martinez, k.patel · Violations: 312</div>
+    </div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-num" style="background:#fef9c3;color:#a16207">5</div>
+    <div class="rec-body">
+      <div class="rec-title">Address Open Source Vulnerability Debt</div>
+      <div class="rec-desc">588 OSS high-vulnerability violations observed — many introduced by AI tools importing dependencies without review. Integrate SCA (Software Composition Analysis) blocking into the CI pipeline and establish a process for upgrading dependencies flagged with CVSS ≥ 7.0 within 30 days of detection.</div>
+      <div class="rec-meta">Policy: Open source packages with high vulnerabilities · Affected: j.martinez, t.okafor, copilot-bot, lovable-bot</div>
+    </div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-num" style="background:#f0fdf4;color:#15803d">6</div>
+    <div class="rec-body">
+      <div class="rec-title">Continue Monitoring — Expand Coverage</div>
+      <div class="rec-desc">Two identities (r.chen_acme, contractor_42) were successfully resolved during this engagement, demonstrating the value of continuous monitoring. Expand coverage to include all developer identities, enforce daily alerting, and establish a SLA for responding to new Critical findings within 72 hours. Consider extending monitoring to pre-production and staging environments.</div>
+      <div class="rec-meta">Resolved this period: r.chen_acme, contractor_42 · Remaining chronic: 8 identities</div>
+    </div>
   </div>
 </div>
 
-<!-- Resolved -->
-<div class="section">
-  <div class="section-title">✅ Resolved — No Longer Active</div>
-  <div>
-    <span class="tag resolved">r.chen_acme</span>
-    <span class="tag resolved">contractor_42</span>
-  </div>
+</div><!-- /body -->
+
+<div class="footer-bar">
+  <span>BlueFlag Security · Identity Lifecycle Review · DEMO — Fictional company, real BlueFlag policy data</span>
+  <span>Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
 </div>
-
-<!-- Threats table -->
-<div class="section">
-  <div class="section-title">🎯 Threats Identified During Engagement</div>
-  <table>
-    <thead><tr><th>Finding / Policy</th><th>Severity</th><th>Total Violations</th><th>Identities Affected</th><th>Runs Present</th><th>First Seen</th><th>Last Seen</th></tr></thead>
-    <tbody>
-      <tr><td style="font-weight:600">Terraform files with critical or high misconfigurations</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">4,821</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy, t.okafor</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">312</td><td style="font-size:11px;color:#666">j.martinez, k.patel +1</td><td style="font-family:monospace">28 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Credential detected in code commit (excluding AWS, DB, Git)</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">47</td><td style="font-size:11px;color:#666">r.chen, t.okafor</td><td style="font-family:monospace">12 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-03</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-18</td></tr>
-      <tr><td style="font-weight:600">Suspicious activity on repository after long period of inactivity</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">238</td><td style="font-size:11px;color:#666">svc-deploy-prod</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Code scans with critical or high vulnerabilities</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">1,640</td><td style="font-size:11px;color:#666">autobot-ci, j.martinez +2</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Personal access tokens with write access and inactive for more than 30 days</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">89</td><td style="font-size:11px;color:#666">k.patel, contractor_42 +3</td><td style="font-family:monospace">25 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-24</td></tr>
-      <tr><td style="font-weight:600">Merged pull requests with check run failures</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">156</td><td style="font-size:11px;color:#666">j.martinez, k.patel</td><td style="font-family:monospace">22 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-01</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Suspicious spike of activity on new repositories by identities</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">14</td><td style="font-size:11px;color:#666">svc-deploy-prod</td><td style="font-family:monospace">8 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-07</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-21</td></tr>
-      <tr><td style="font-weight:600">Unverified commit changes to build configuration files</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">203</td><td style="font-size:11px;color:#666">autobot-ci, t.okafor +1</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">PRs approved by users with no prior commit history</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">31</td><td style="font-size:11px;color:#666">contractor_42</td><td style="font-family:monospace">14 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-02</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-19</td></tr>
-      <tr><td style="font-weight:600">Open source packages with high vulnerabilities</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">412</td><td style="font-size:11px;color:#666">j.martinez, t.okafor +3</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr><td style="font-weight:600">Identities with multiple risky policy violations</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">12</td><td style="font-size:11px;color:#666">j.martinez, svc-deploy +4</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Unverified commit changes to build configuration files — Agentic AI origin</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">584</td><td style="font-size:11px;color:#666">copilot-bot, claude-code-svc, lovable-bot</td><td style="font-family:monospace">30 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Credential detected in code commit — AI-generated code (copilot-bot, claude-code-svc)</td><td><span style="color:#e05252;font-weight:700;font-size:11px">Critical</span></td><td style="font-family:monospace;font-weight:700">12</td><td style="font-size:11px;color:#666">copilot-bot, claude-code-svc</td><td style="font-family:monospace">8 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-06</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-27</td></tr>
-      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Merged pull requests with check run failures — AI agent bypassed CI gates</td><td><span style="color:#e07d22;font-weight:700;font-size:11px">High</span></td><td style="font-family:monospace;font-weight:700">75</td><td style="font-size:11px;color:#666">copilot-bot, lovable-bot</td><td style="font-family:monospace">22 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-01</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-      <tr style="background:#f5f0ff"><td style="font-weight:600">🤖 Open source packages with high vulnerabilities — AI-imported dependencies</td><td><span style="color:#f0b429;font-weight:700;font-size:11px">Medium</span></td><td style="font-family:monospace;font-weight:700">245</td><td style="font-size:11px;color:#666">lovable-bot, copilot-bot</td><td style="font-family:monospace">28 / 30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-04-30</td><td style="font-family:monospace;font-size:11px;color:#999">2026-05-29</td></tr>
-    </tbody>
-  </table>
-  <div style="font-size:11px;color:#7c3aed;margin-top:10px;padding:8px 12px;background:#f5f0ff;border-radius:6px;border-left:3px solid #7c3aed">🤖 <strong>Agentic AI Note:</strong> copilot-bot, claude-code-svc, and lovable-bot are service account identities created when AI coding tools were granted repository access. These accounts operate autonomously and triggered policy violations across 30 consecutive runs — indicating persistent, unreviewed agentic activity in your environment.</div>
-</div>
-
-<!-- Per-actor threat detail -->
-<div class="section">
-  <div class="section-title">👤 Actor Threat Detail</div>
-
-  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">j.martinez_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
-      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">1,847</td></tr>
-      <tr><td>Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">54</td></tr>
-      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">87</td></tr>
-      <tr><td>Code scans with critical or high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">235</td></tr>
-      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">svc-deploy-prod</div><div style="font-size:10px;color:#999;margin-top:2px">Service account · First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
-      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">2,104</td></tr>
-      <tr><td>Suspicious activity on repository after long period of inactivity</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">238</td></tr>
-      <tr><td>Suspicious spike of activity on new repositories by identities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">14</td></tr>
-      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">t.okafor_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
-      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Credential detected in code commit (excluding AWS, DB, Git)</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">47</td></tr>
-      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">412</td></tr>
-      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">98</td></tr>
-      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">67</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">k.patel_acme</div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 28/30 runs</div></div>
-      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Branch protection bypassed by administrators in GitHub/Azure DevOps repositories</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">22</td></tr>
-      <tr><td>Personal access tokens with write access and inactive for more than 30 days</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">3</td></tr>
-      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">69</td></tr>
-      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">autobot-ci</div><div style="font-size:10px;color:#999;margin-top:2px">CI/CD service account · First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs</div></div>
-      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Code scans with critical or high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">1,405</td></tr>
-      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">136</td></tr>
-      <tr><td>Identities with multiple risky policy violations</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">1</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #c0d0ff;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#f8f0ff">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 copilot-bot <span style="font-weight:400;color:#1550FF;font-size:10px">GitHub Copilot service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs · AGENTIC AI</div></div>
-      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">312</td></tr>
-      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">44</td></tr>
-      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#f0b429;font-weight:700;font-size:11px">Medium</td><td style="font-family:monospace">89</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #d0b0ff;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#faf5ff">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 claude-code-svc <span style="font-weight:400;color:#7c3aed;font-size:10px">Claude Code agentic service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-04-30 · Last seen: 2026-05-29 · 30/30 runs · AGENTIC AI</div></div>
-      <span style="color:#e05252;font-weight:800;font-size:11px;background:#e0525218;padding:3px 10px;border-radius:6px">Critical</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">178</td></tr>
-      <tr><td>Terraform files with critical or high misconfigurations</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">203</td></tr>
-      <tr><td>Credential detected in code commit (excluding AWS, DB, Git)</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">12</td></tr>
-    </tbody></table>
-  </div>
-
-  <div style="border:1px solid #ffcba4;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:#fff8f5">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div><div style="font-family:monospace;font-size:12px;font-weight:700">🤖 lovable-bot <span style="font-weight:400;color:#c2410c;font-size:10px">Lovable AI builder service account</span></div><div style="font-size:10px;color:#999;margin-top:2px">First seen: 2026-05-01 · Last seen: 2026-05-29 · 28/30 runs · AGENTIC AI</div></div>
-      <span style="color:#e07d22;font-weight:800;font-size:11px;background:#e07d2218;padding:3px 10px;border-radius:6px">High</span>
-    </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead><tbody>
-      <tr><td>Unverified commit changes to build configuration files</td><td style="color:#e05252;font-weight:700;font-size:11px">Critical</td><td style="font-family:monospace">94</td></tr>
-      <tr><td>Open source packages with high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">156</td></tr>
-      <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">31</td></tr>
-    </tbody></table>
-  </div>
-</div>
-
-<div class="footer">BlueFlag Security · Identity Lifecycle Review · DEMO ONLY — Not based on real customer data</div>
-</div>
+</div><!-- /page -->
 
 <script>
 (function() {
@@ -867,44 +1002,29 @@ app.get('/demo-arc', (req, res) => {
   const W = svg.node().parentElement.clientWidth - 48;
   const H = 420;
   svg.attr('width', W).attr('height', H).style('overflow','visible');
-
   const sk = d3.sankey().nodeWidth(14).nodePadding(5).extent([[1,4],[W-140,H-4]]);
-  let { nodes, links } = sk({
-    nodes: raw.nodes.map(d=>({...d})),
-    links: raw.links.map(d=>({...d}))
-  });
-
+  let { nodes, links } = sk({ nodes: raw.nodes.map(d=>({...d})), links: raw.links.map(d=>({...d})) });
   const maxX = Math.max(...nodes.map(n=>n.x0));
   const minX = Math.min(...nodes.map(n=>n.x0));
-
   const aiNames = new Set(['copilot-bot','claude-code-svc','lovable-bot']);
   const color = n => {
-    if (n.name==='Critical')         return '#e05252';
-    if (n.name==='High')             return '#e07d22';
-    if (n.name==='Medium')           return '#f0b429';
-    if (n.name==='copilot-bot')      return '#1550FF';
-    if (n.name==='claude-code-svc')  return '#7c3aed';
-    if (n.name==='lovable-bot')      return '#c2410c';
-    if (n.x0 === minX)               return '#1a3a6b';
+    if (n.name==='Critical') return '#e05252';
+    if (n.name==='High')     return '#e07d22';
+    if (n.name==='Medium')   return '#f0b429';
+    if (n.name==='copilot-bot')     return '#1550FF';
+    if (n.name==='claude-code-svc') return '#7c3aed';
+    if (n.name==='lovable-bot')     return '#c2410c';
+    if (n.x0 === minX) return '#1a3a6b';
     return '#6b7db3';
   };
-
-  // Nodes
   svg.append('g').selectAll('rect').data(nodes).join('rect')
-    .attr('x',d=>d.x0).attr('y',d=>d.y0)
-    .attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
+    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
     .attr('fill',color).attr('rx',3).attr('opacity',.9);
-
-  // Links
   svg.append('g').attr('fill','none').selectAll('path').data(links).join('path')
-    .attr('d',d3.sankeyLinkHorizontal())
-    .attr('stroke',d=>color(d.target))
-    .attr('stroke-width',d=>Math.max(1,d.width))
-    .attr('opacity',.2);
-
-  // Labels
+    .attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=>color(d.target))
+    .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.2);
   svg.append('g').selectAll('text').data(nodes).join('text')
-    .attr('x',d=>d.x0===minX ? d.x1+6 : d.x0===maxX ? d.x1+6 : d.x0-6)
+    .attr('x',d=>d.x0===minX?d.x1+6:d.x0===maxX?d.x1+6:d.x0-6)
     .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
     .attr('text-anchor',d=>d.x0===minX||d.x0===maxX?'start':'end')
     .attr('font-size',9).attr('font-family','monospace')
