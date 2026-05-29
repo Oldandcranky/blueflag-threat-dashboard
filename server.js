@@ -360,6 +360,57 @@ app.post('/api/generate-email', async (req, res) => {
       .map(([sec,r])=>r&&(r.critical||r.high)?`${sec.replace(' Risk','')}: ${r.critical||0} critical, ${r.high||0} high`:'')
       .filter(Boolean).join(' | ');
 
+    // ── Actor persistence — how many previous runs has each actor appeared in? ──
+    const actorPersistence = (() => {
+      const histDir = path.join(snapDir, 'history', tenantId);
+      if (!fs.existsSync(histDir)) return {};
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const files = fs.readdirSync(histDir)
+        .filter(f => f.endsWith('.json') && f.slice(0, 10) !== todayStr)
+        .sort();
+      if (!files.length) return {};
+      const totalRuns = files.length;
+      const counts = {};
+      const firstSeen = {};
+      for (const f of files) {
+        try {
+          const h = JSON.parse(fs.readFileSync(path.join(histDir, f), 'utf8'));
+          const date = f.slice(0, 10);
+          const actors = new Set([
+            ...(h.behaviors||[]).map(b => b.user).filter(Boolean),
+            ...Object.keys(h.identities||{})
+          ]);
+          for (const actor of actors) {
+            counts[actor] = (counts[actor] || 0) + 1;
+            if (!firstSeen[actor]) firstSeen[actor] = date;
+          }
+        } catch {}
+      }
+      return { counts, firstSeen, totalRuns };
+    })();
+
+    const persistenceLines = (() => {
+      if (!actorPersistence.counts) return '';
+      const { counts, firstSeen, totalRuns } = actorPersistence;
+      const todayActors = [
+        ...(snap?.behaviors||[]).map(b => b.user),
+        ...Object.keys(snap?.identities||{})
+      ].filter(Boolean);
+      const seen = new Set(todayActors);
+      const lines = [];
+      for (const actor of seen) {
+        const n = counts[actor] || 0;
+        if (n === 0) {
+          lines.push(`- ${actor}: NEW — first appearance today`);
+        } else if (n >= totalRuns) {
+          lines.push(`- ${actor}: CHRONIC — present in all ${totalRuns} previous run(s) (since ${firstSeen[actor]})`);
+        } else {
+          lines.push(`- ${actor}: seen in ${n} of ${totalRuns} previous run(s) (first: ${firstSeen[actor]})`);
+        }
+      }
+      return lines.join('\n');
+    })();
+
     // ── Scrambler — replace all customer-identifiable strings with generic tokens ──
     // Nothing identifiable leaves this server; tokens are reversed on the response.
     const _actorSet = new Set();
@@ -403,7 +454,7 @@ URL: ${tenant.url}
 
 ACTOR FINDINGS:
 ${actorLines.length ? actorLines.join('\n') : 'No specific actors identified yet — use risk data below'}
-
+${persistenceLines ? `\nACTOR PERSISTENCE (how long we have been seeing each actor across monitoring runs):\n${persistenceLines}` : ''}
 RISK EXPOSURE:
 ${riskSummary || 'Not available'}
 
@@ -420,7 +471,9 @@ Rules:
 - Do not overstate breach/exfiltration. Use language like "worth reviewing", "pattern we would want to validate", or "could indicate".
 - Do not use bullet points in the email body.
 - Reference the strongest actor finding and 1-2 concrete numbers/policy reasons.
-- If there is a very large clone count, mention it plainly and connect it to why it matters.`;
+- If there is a very large clone count, mention it plainly and connect it to why it matters.
+- If any actors are marked CHRONIC, weave that persistence into the narrative — it strengthens urgency without overstating.
+- If actors are NEW, note that this is a fresh signal worth validating quickly.`;
 
     const scrambledPrompt = scramble(prompt);
 
