@@ -1524,9 +1524,11 @@ async function openIdentities(actor, tenantUrl) {
   `;
 
   openBtn.onclick = async () => {
-    try { await navigator.clipboard.writeText(actor); } catch {}
-    window.open(tenantUrl.replace(/\/$/, '') + '/identities', '_blank');
-    showToast(`"${actor}" copied — BlueFlag Identities opened`);
+    const source = identity.source || 'GitHub';
+    const base   = tenantUrl.replace(/\/$/, '');
+    const url    = `${base}/identities?identity=${encodeURIComponent(actor)}&source=${encodeURIComponent(source)}`;
+    window.open(url, '_blank');
+    showToast(`Opening ${display} in BlueFlag...`);
   };
 
   modal.classList.add('open');
