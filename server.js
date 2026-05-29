@@ -232,7 +232,6 @@ app.get('/api/arc/:id', (req, res) => {
   <div class="exec-overview">
     <div class="exec-title">Executive Overview</div>
     <div class="exec-kpis">
-      <div class="exec-kpi"><div class="exec-kpi-val" style="color:${trendColor}">${trend}</div><div class="exec-kpi-label">Risk Direction</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">${lastCrit.toLocaleString()}</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val">${chronicCount}</div><div class="exec-kpi-label">Persistent Identities</div></div>
       <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">${resolvedCount}</div><div class="exec-kpi-label">Resolved This Period</div></div>
