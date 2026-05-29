@@ -235,26 +235,55 @@ app.get('/api/arc/:id', (req, res) => {
     </tr>`;
   }).join('');
 
-  // Chart data for D3
-  const chartData = JSON.stringify(runs.map(r=>({ date: r.date, crit: r.crit, high: r.high })));
-
-  // Sankey data from latest snapshot
+  // Sankey: Identities → Policies → Severity (from latest snapshot)
   const sankeyData = (() => {
-    if (!latestSnap?.risk) return null;
-    const nodes = [], links = [];
-    const cats = Object.entries(latestSnap.risk).filter(([,r])=>r&&(r.critical||r.high));
-    const tenantIdx = 0;
-    nodes.push({ name: tenant.name });
-    cats.forEach(([cat], i) => nodes.push({ name: cat.replace(' Risk','') }));
-    nodes.push({ name: 'Critical' }, { name: 'High' });
-    const critIdx = nodes.length - 2, highIdx = nodes.length - 1;
-    cats.forEach(([cat, r], i) => {
-      if (r.critical) links.push({ source: 0, target: i+1, value: r.critical });
-      if (r.high)     links.push({ source: 0, target: i+1, value: r.high });
-      if (r.critical) links.push({ source: i+1, target: critIdx, value: r.critical });
-      if (r.high)     links.push({ source: i+1, target: highIdx, value: r.high });
-    });
-    return JSON.stringify({ nodes, links });
+    const identities = latestSnap?.identities || {};
+    if (!Object.keys(identities).length) return null;
+
+    const actorNames = [], policyNames = [], sevNames = ['Critical','High','Medium'];
+    const links = [];
+
+    // Collect unique actors and policies
+    for (const [actor, id] of Object.entries(identities)) {
+      if (!(id.riskReasons||[]).length) continue;
+      actorNames.push(actor);
+    }
+    const topActors = actorNames.slice(0, 8); // cap at 8 for readability
+    for (const actor of topActors) {
+      for (const r of (identities[actor]?.riskReasons||[])) {
+        if (!policyNames.includes(r.policyName)) policyNames.push(r.policyName);
+      }
+    }
+    const topPoliciesNames = policyNames.slice(0, 10);
+
+    // Build node list: actors | policies | severities
+    const nodes = [
+      ...topActors.map(n=>({ name: n.split(/[-_@]/)[0] + (n.includes('@') ? '@'+n.split('@')[1].split('.')[0] : '') })),
+      ...topPoliciesNames.map(n=>({ name: n.length > 35 ? n.slice(0,33)+'…' : n })),
+      ...sevNames.map(n=>({ name: n }))
+    ];
+    const actorOffset  = 0;
+    const policyOffset = topActors.length;
+    const sevOffset    = topActors.length + topPoliciesNames.length;
+
+    for (let ai = 0; ai < topActors.length; ai++) {
+      const actor = topActors[ai];
+      for (const r of (identities[actor]?.riskReasons||[])) {
+        const pi = topPoliciesNames.indexOf(r.policyName);
+        if (pi < 0) continue;
+        const v = r.violationsCount || 1;
+        links.push({ source: actorOffset+ai, target: policyOffset+pi, value: v });
+        const si = sevNames.indexOf(r.severity);
+        if (si >= 0) links.push({ source: policyOffset+pi, target: sevOffset+si, value: v });
+      }
+    }
+    // Deduplicate/merge links
+    const merged = {};
+    for (const l of links) {
+      const k = `${l.source}-${l.target}`;
+      merged[k] = { source: l.source, target: l.target, value: (merged[k]?.value||0) + l.value };
+    }
+    return JSON.stringify({ nodes, links: Object.values(merged) });
   })();
 
   const html = `<!DOCTYPE html>
@@ -269,12 +298,9 @@ app.get('/api/arc/:id', (req, res) => {
   .page { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
 
   /* Header */
-  .header { background: linear-gradient(135deg, #0d1e3c 0%, #1550FF 100%); border-radius: 12px; padding: 32px 36px; margin-bottom: 28px; color: #fff; display: flex; justify-content: space-between; align-items: flex-end; }
-  .header-left h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
-  .header-left .sub { font-size: 13px; opacity: .65; font-family: monospace; }
-  .header-right { text-align: right; }
-  .trend-badge { font-size: 18px; font-weight: 800; color: ${trendColor}; background: rgba(255,255,255,.12); padding: 8px 16px; border-radius: 8px; }
-  .trend-label { font-size: 10px; opacity: .6; text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+  .header { background: linear-gradient(135deg, #0d1e3c 0%, #1550FF 100%); border-radius: 12px; padding: 32px 36px; margin-bottom: 28px; color: #fff; }
+  .header h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+  .header .sub { font-size: 13px; opacity: .65; font-family: monospace; }
 
   /* KPIs */
   .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
@@ -287,20 +313,8 @@ app.get('/api/arc/:id', (req, res) => {
   /* Sections */
   .section { background: #fff; border: 1px solid #e0e4f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
   .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #999; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-
   /* Charts */
-  #trendChart { width: 100%; }
-  #sankeyChart { width: 100%; }
-  .chart-line-crit { fill: none; stroke: #e05252; stroke-width: 2.5; }
-  .chart-line-high { fill: none; stroke: #e07d22; stroke-width: 2; stroke-dasharray: 4 2; }
-  .chart-area-crit { fill: rgba(224,82,82,.1); }
-  .chart-area-high { fill: rgba(224,125,34,.07); }
-  .axis text { font-size: 10px; fill: #999; font-family: monospace; }
-  .axis line, .axis path { stroke: #eee; }
-  .grid line { stroke: #f0f0f0; }
-  .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #666; margin-right: 16px; }
-  .legend-dot { width: 10px; height: 3px; border-radius: 2px; }
+  #sankeyChart { width: 100%; overflow: visible; }
 
   /* Table */
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -327,14 +341,8 @@ app.get('/api/arc/:id', (req, res) => {
 
   <!-- Header -->
   <div class="header">
-    <div class="header-left">
-      <h1>${tenant.name} — Security Engagement Arc</h1>
-      <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
-    </div>
-    <div class="header-right">
-      <div class="trend-badge">${trend}</div>
-      <div class="trend-label" style="color:rgba(255,255,255,.5)">Risk Trajectory</div>
-    </div>
+    <h1>${tenant.name} — Security Engagement Arc</h1>
+    <div class="sub">${tenant.url} · BlueFlag Security · Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
   </div>
 
   <!-- KPIs -->
@@ -346,20 +354,10 @@ app.get('/api/arc/:id', (req, res) => {
     <div class="kpi"><div class="kpi-val ${resolved.length ? 'green' : ''}">${resolved.length}</div><div class="kpi-label">Resolved Actors</div></div>
   </div>
 
-  <!-- Charts side by side -->
-  <div class="two-col">
-    <div class="section">
-      <div class="section-title">Risk Trend — Critical &amp; High Over Time</div>
-      <div style="margin-bottom:10px">
-        <span class="legend-item"><span class="legend-dot" style="background:#e05252"></span>Critical</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#e07d22"></span>High</span>
-      </div>
-      <svg id="trendChart" height="200"></svg>
-    </div>
-    <div class="section">
-      <div class="section-title">Current Risk Flow — Categories → Severity</div>
-      <svg id="sankeyChart" height="200"></svg>
-    </div>
+  <!-- Sankey full width -->
+  <div class="section" style="margin-bottom:20px">
+    <div class="section-title">Identities → Policies → Severity</div>
+    <svg id="sankeyChart" height="320"></svg>
   </div>
 
   <!-- Run history table -->
@@ -450,72 +448,44 @@ app.get('/api/arc/:id', (req, res) => {
 </div>
 
 <script>
-// ── Trend Chart ──────────────────────────────────────────────────
-(function() {
-  const data = ${chartData};
-  if (data.length < 2) return;
-  const svg = d3.select('#trendChart');
-  const W = svg.node().parentElement.clientWidth - 48;
-  const H = 200, pad = { t:10, r:10, b:30, l:45 };
-  svg.attr('width', W).attr('height', H);
-  const w = W - pad.l - pad.r, h = H - pad.t - pad.b;
-  const g = svg.append('g').attr('transform', \`translate(\${pad.l},\${pad.t})\`);
-
-  const dates = data.map(d => new Date(d.date));
-  const x = d3.scaleTime().domain(d3.extent(dates)).range([0, w]);
-  const maxY = d3.max(data, d => Math.max(d.crit, d.high)) * 1.1 || 10;
-  const y = d3.scaleLinear().domain([0, maxY]).range([h, 0]);
-
-  // Grid
-  g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(4).tickSize(-w).tickFormat(''));
-
-  // Areas
-  const areaCrit = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.crit)).curve(d3.curveMonotoneX);
-  const areaHigh = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.high)).curve(d3.curveMonotoneX);
-  g.append('path').datum(data).attr('class','chart-area-high').attr('d',areaHigh);
-  g.append('path').datum(data).attr('class','chart-area-crit').attr('d',areaCrit);
-
-  // Lines
-  const lineCrit = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.crit)).curve(d3.curveMonotoneX);
-  const lineHigh = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.high)).curve(d3.curveMonotoneX);
-  g.append('path').datum(data).attr('class','chart-line-high').attr('d',lineHigh);
-  g.append('path').datum(data).attr('class','chart-line-crit').attr('d',lineCrit);
-
-  // Axes
-  g.append('g').attr('class','axis').attr('transform',\`translate(0,\${h})\`).call(d3.axisBottom(x).ticks(Math.min(data.length,6)).tickFormat(d3.timeFormat('%b %d')));
-  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',d')));
-})();
-
-// ── Sankey Chart ─────────────────────────────────────────────────
+// ── Sankey: Identities → Policies → Severity ─────────────────────
 (function() {
   const raw = ${sankeyData || 'null'};
   if (!raw || !raw.nodes.length) return;
   const svg = d3.select('#sankeyChart');
   const W = svg.node().parentElement.clientWidth - 48;
-  const H = 200;
+  const H = 320;
   svg.attr('width', W).attr('height', H);
 
-  const sk = d3.sankey().nodeWidth(14).nodePadding(8).extent([[1,4],[W-80,H-4]]);
+  const sk = d3.sankey().nodeWidth(14).nodePadding(6).extent([[1,4],[W-120,H-4]]);
   let { nodes, links } = sk({ nodes: raw.nodes.map(d=>({...d})), links: raw.links.map(d=>({...d})) });
 
+  // Color by column position
+  const maxX = Math.max(...nodes.map(n=>n.x0));
   const color = n => {
     if (n.name==='Critical') return '#e05252';
     if (n.name==='High')     return '#e07d22';
-    return '#1550FF';
+    if (n.name==='Medium')   return '#f0b429';
+    if (n.x0 === maxX)       return '#e05252';
+    if (n.x0 === 0)          return '#1550FF';
+    return '#6b7db3';
   };
 
   svg.append('g').selectAll('rect').data(nodes).join('rect')
-    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(1,d.y1-d.y0))
-    .attr('fill',color).attr('rx',3).attr('opacity',.85);
+    .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
+    .attr('fill',color).attr('rx',3).attr('opacity',.9);
 
   svg.append('g').attr('fill','none').selectAll('path').data(links).join('path')
     .attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=>color(nodes[d.target.index||d.target]))
     .attr('stroke-width',d=>Math.max(1,d.width)).attr('opacity',.25);
 
+  const minX = Math.min(...nodes.map(n=>n.x0));
   svg.append('g').selectAll('text').data(nodes).join('text')
-    .attr('x',d=>d.x0<W/2?d.x1+6:d.x0-6).attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
-    .attr('text-anchor',d=>d.x0<W/2?'start':'end')
-    .attr('font-size',10).attr('font-family','monospace').attr('fill','#555').text(d=>d.name);
+    .attr('x',d=>d.x0===minX?d.x1+6:d.x0===maxX?d.x1+6:d.x0-6)
+    .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
+    .attr('text-anchor',d=>d.x0===minX?'start':d.x0===maxX?'start':'end')
+    .attr('font-size',9).attr('font-family','monospace').attr('fill','#444')
+    .attr('max-width',100).text(d=>d.name);
 })();
 </script>
 </body></html>`;
