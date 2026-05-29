@@ -431,19 +431,6 @@ app.get('/api/arc/:id', (req, res) => {
     }).join('')}
   </div>
 
-  <div class="section">
-    <div class="section-title">Identity Lifecycle Review</div>
-    <div class="actor-grid">
-      ${Object.entries(actorTimeline).sort((a,b)=>b[1].count-a[1].count).map(([name,v])=>`
-        <div class="actor-card">
-          <div class="actor-name">${name}</div>
-          <div class="actor-meta">First: ${v.first} · Last: ${v.last}</div>
-          <div class="actor-bar"><div class="actor-bar-fill" style="width:${Math.round(v.count/runs.length*100)}%"></div></div>
-          <div class="actor-meta" style="margin-top:4px">${v.count} / ${runs.length} runs</div>
-        </div>`).join('')}
-    </div>
-  </div>
-
   <div class="footer">BlueFlag Security Threat Dashboard · Confidential · ${tenant.url}</div>
 </div>
 
@@ -800,25 +787,6 @@ app.get('/demo-arc', (req, res) => {
       <tr><td>Open source packages with high vulnerabilities</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">156</td></tr>
       <tr><td>Merged pull requests with check run failures</td><td style="color:#e07d22;font-weight:700;font-size:11px">High</td><td style="font-family:monospace">31</td></tr>
     </tbody></table>
-  </div>
-</div>
-
-<!-- Identity Lifecycle Review -->
-<div class="section">
-  <div class="section-title">Identity Lifecycle Review</div>
-  <div class="actor-grid">
-    <div class="actor-card"><div class="actor-name">j.martinez_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
-    <div class="actor-card"><div class="actor-name">svc-deploy-prod</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
-    <div class="actor-card"><div class="actor-name">t.okafor_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
-    <div class="actor-card"><div class="actor-name">k.patel_acme</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:93%"></div></div><div class="actor-meta" style="margin-top:4px">28 / 30 runs · CHRONIC</div></div>
-    <div class="actor-card"><div class="actor-name">autobot-ci</div><div class="actor-meta">First: 2026-04-30 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · CHRONIC</div></div>
-    <div class="actor-card"><div class="actor-name">m.nguyen_acme</div><div class="actor-meta">First: 2026-05-05 · Last: 2026-05-26</div><div class="actor-bar"><div class="actor-bar-fill" style="width:63%"></div></div><div class="actor-meta" style="margin-top:4px">19 / 30 runs</div></div>
-    <div class="actor-card"><div class="actor-name">r.chen_acme</div><div class="actor-meta">First: 2026-05-03 · Last: 2026-05-18</div><div class="actor-bar"><div class="actor-bar-fill" style="width:37%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">11 / 30 runs · RESOLVED</div></div>
-    <div class="actor-card"><div class="actor-name">contractor_42</div><div class="actor-meta">First: 2026-05-02 · Last: 2026-05-19</div><div class="actor-bar"><div class="actor-bar-fill" style="width:40%;background:#27ae60"></div></div><div class="actor-meta" style="margin-top:4px">12 / 30 runs · RESOLVED</div></div>
-    <div class="actor-card"><div class="actor-name">d.osei_acme</div><div class="actor-meta">First: 2026-05-14 · Last: 2026-05-29</div><div class="actor-bar"><div class="actor-bar-fill" style="width:50%"></div></div><div class="actor-meta" style="margin-top:4px">15 / 30 runs</div></div>
-    <div class="actor-card" style="border-color:#c0d0ff;background:#f8f0ff"><div class="actor-name" style="color:#1550FF">🤖 copilot-bot</div><div class="actor-meta">GitHub Copilot · First: 2026-04-30</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%;background:#1550FF"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · AGENTIC AI</div></div>
-    <div class="actor-card" style="border-color:#d0b0ff;background:#faf5ff"><div class="actor-name" style="color:#7c3aed">🤖 claude-code-svc</div><div class="actor-meta">Claude Code · First: 2026-04-30</div><div class="actor-bar"><div class="actor-bar-fill" style="width:100%;background:#7c3aed"></div></div><div class="actor-meta" style="margin-top:4px">30 / 30 runs · AGENTIC AI</div></div>
-    <div class="actor-card" style="border-color:#ffcba4;background:#fff8f5"><div class="actor-name" style="color:#c2410c">🤖 lovable-bot</div><div class="actor-meta">Lovable AI · First: 2026-05-01</div><div class="actor-bar"><div class="actor-bar-fill" style="width:93%;background:#c2410c"></div></div><div class="actor-meta" style="margin-top:4px">28 / 30 runs · AGENTIC AI</div></div>
   </div>
 </div>
 
