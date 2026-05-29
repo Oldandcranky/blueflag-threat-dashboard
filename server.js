@@ -103,8 +103,18 @@ app.delete('/api/snapshots/:id', (req, res) => {
 // ── Run Stream (SSE) + Stop ───────────────────────────────────────────────────
 let activeProc = null;
 const aiLogClients = new Set();
-const aiLogBuffer  = []; // ring buffer — holds last 200 messages for late-connecting clients
-const AI_BUF_MAX   = 200;
+const aiLogBuffer  = []; // ring buffer — holds last 500 messages for late-connecting clients
+const AI_BUF_MAX   = 500;
+
+// Broadcast a plain text line to all SSE clients and the buffer
+// Used for cron/startup runs so they appear in the Activity Log
+function broadcastRun(text) {
+  process.stdout.write(text);
+  const frame = `event: log\ndata: ${JSON.stringify({ text })}\n\n`;
+  aiLogBuffer.push(frame);
+  if (aiLogBuffer.length > AI_BUF_MAX) aiLogBuffer.shift();
+  for (const client of aiLogClients) client.write(frame);
+}
 
 app.get('/api/run/stream', (req, res) => {
   if (activeProc) {
@@ -179,15 +189,15 @@ function scheduleDailyRun() {
   if (isNaN(hh) || isNaN(mm)) return;
 
   cronTask = cron.schedule(`${mm} ${hh} * * *`, () => {
-    if (activeProc) { console.log('[cron] Skipping — a run is already in progress'); return; }
-    console.log(`[cron] Daily run starting (${new Date().toLocaleString()})`);
+    if (activeProc) { broadcastRun('[cron] Skipping — a run is already in progress\n'); return; }
+    broadcastRun(`[cron] Daily run starting (${new Date().toLocaleString()})\n`);
     const proc = spawn('node', ['run.js'], { cwd: DIR });
     activeProc = proc;
-    proc.stdout.on('data', d => process.stdout.write(d));
-    proc.stderr.on('data', d => process.stderr.write(d));
+    proc.stdout.on('data', d => broadcastRun(d.toString()));
+    proc.stderr.on('data', d => broadcastRun(d.toString()));
     proc.on('close', code => {
       activeProc = null;
-      console.log(`[cron] Daily run complete (exit ${code}) at ${new Date().toLocaleString()}`);
+      broadcastRun(`[cron] Daily run complete (exit ${code}) at ${new Date().toLocaleString()}\n`);
     });
   }, { timezone: process.env.TZ || 'America/Chicago' });
 
@@ -204,7 +214,7 @@ function startupCatchupRun() {
 
   let newest = null;
   try {
-    for (const f of fs.readdirSync(snapDir).filter(f => f.endsWith('.json') && !f.endsWith('.prev.json'))) {
+    for (const f of fs.readdirSync(snapDir).filter(f => f.endsWith('.json') && !f.endsWith('.prev.json') && !f.includes('history'))) {
       const snap = JSON.parse(fs.readFileSync(path.join(snapDir, f), 'utf8'));
       if (snap.scrapedAt && (!newest || snap.scrapedAt > newest)) newest = snap.scrapedAt;
     }
@@ -223,16 +233,17 @@ function startupCatchupRun() {
 
   // Catch-up if: scheduled time has passed today AND last scrape was before today's scheduled run
   if (now >= scheduledToday && lastScrape < scheduledToday) {
-    console.log(`[startup] Missed today's scheduled run — catch-up scrape in 10s`);
+    broadcastRun(`[startup] Missed today's scheduled run — catch-up scrape in 10s\n`);
     setTimeout(() => {
       if (activeProc) return;
+      broadcastRun(`[startup] Catch-up run starting...\n`);
       const proc = spawn('node', ['run.js'], { cwd: DIR });
       activeProc = proc;
-      proc.stdout.on('data', d => process.stdout.write(d));
-      proc.stderr.on('data', d => process.stderr.write(d));
+      proc.stdout.on('data', d => broadcastRun(d.toString()));
+      proc.stderr.on('data', d => broadcastRun(d.toString()));
       proc.on('close', code => {
         activeProc = null;
-        console.log(`[startup] Catch-up run complete (exit ${code})`);
+        broadcastRun(`[startup] Catch-up run complete (exit ${code})\n`);
       });
     }, 10000);
   } else {

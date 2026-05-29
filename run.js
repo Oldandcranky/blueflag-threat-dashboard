@@ -44,7 +44,13 @@ function loadSnapshot(id) {
 
 function saveSnapshot(id, data) {
   fs.mkdirSync(SNAPSHOTS_DIR, { recursive: true });
+  // Always overwrite the latest snapshot (used by the dashboard)
   fs.writeFileSync(path.join(SNAPSHOTS_DIR, `${id}.json`), JSON.stringify(data, null, 2));
+  // Also save a dated copy so we keep the full history of every run
+  const date    = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const histDir = path.join(SNAPSHOTS_DIR, 'history', id);
+  fs.mkdirSync(histDir, { recursive: true });
+  fs.writeFileSync(path.join(histDir, `${date}.json`), JSON.stringify(data, null, 2));
 }
 
 // ── Parse ─────────────────────────────────────────────────────────────────────
