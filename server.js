@@ -173,10 +173,10 @@ app.get('/api/arc/:id', (req, res) => {
     }
   }
   const chronics = Object.entries(actorTimeline).filter(([,v])=>v.count>=runs.length*0.7).map(([k])=>k);
-  const resolved = Object.entries(actorTimeline).filter(([,v])=>{
-    const lastRun = runs.at(-1);
-    return lastRun && !lastRun.actors.includes(k) && v.count > 1;
-  }).map(([k])=>k);
+  const lastRunActors = new Set(runs.at(-1)?.actors || []);
+  const resolved = Object.entries(actorTimeline)
+    .filter(([k, v]) => !lastRunActors.has(k) && v.count > 1)
+    .map(([k]) => k);
 
   const firstRun = runs[0], lastRun = runs.at(-1);
   const engagementDays = Math.floor((new Date(lastRun.date)-new Date(firstRun.date))/86400000)+1;
