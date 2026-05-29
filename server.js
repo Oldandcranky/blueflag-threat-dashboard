@@ -157,6 +157,10 @@ app.get('/api/arc/:id', (req, res) => {
     try { return JSON.parse(fs.readFileSync(path.join(snapDir, `${req.params.id}.json`), 'utf8')); } catch { return null; }
   })();
 
+  // ── Aggregate threats across all history runs ────────────────────────────────
+  const policyMap = {}; // policyName → { severity, totalViolations, actors, runs, firstSeen, lastSeen }
+  const actorPolicyMap = {}; // actor → { policyName → { severity, maxViolations, firstSeen } }
+
   const runs = files.map(f => {
     const date = f.slice(0,10);
     try {
@@ -164,13 +168,34 @@ app.get('/api/arc/:id', (req, res) => {
       const crit = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.critical||0),0);
       const high = Object.values(s.risk||{}).reduce((n,r)=>n+(r?.high||0),0);
       const actors = [...new Set([...(s.behaviors||[]).map(b=>b.user).filter(Boolean)])];
-      const idCrit = s.risk?.['Identities Risk']?.critical||0;
-      const idHigh = s.risk?.['Identities Risk']?.high||0;
-      const asCrit = s.risk?.['Assets Risk']?.critical||0;
-      const asHigh = s.risk?.['Assets Risk']?.high||0;
-      return { date, crit, high, actors, actorCount: actors.length, idCrit, idHigh, asCrit, asHigh };
+
+      // Aggregate policy findings from this run's identities
+      for (const [actor, identity] of Object.entries(s.identities||{})) {
+        for (const reason of (identity.riskReasons||[])) {
+          const p = reason.policyName;
+          const sev = reason.severity || 'Medium';
+          const v = reason.violationsCount || 1;
+          if (!policyMap[p]) policyMap[p] = { severity: sev, totalViolations: 0, actors: new Set(), runs: new Set(), firstSeen: date, lastSeen: date };
+          policyMap[p].totalViolations += v;
+          policyMap[p].actors.add(actor);
+          policyMap[p].runs.add(date);
+          policyMap[p].lastSeen = date;
+
+          if (!actorPolicyMap[actor]) actorPolicyMap[actor] = {};
+          if (!actorPolicyMap[actor][p] || v > actorPolicyMap[actor][p].maxViolations) {
+            actorPolicyMap[actor][p] = { severity: sev, maxViolations: v, firstSeen: actorPolicyMap[actor][p]?.firstSeen || date };
+          }
+        }
+      }
+
+      return { date, crit, high, actors, actorCount: actors.length };
     } catch { return null; }
   }).filter(Boolean);
+
+  // Sort policies: Critical first, then by total violations desc
+  const topPolicies = Object.entries(policyMap)
+    .sort((a,b) => (sevOrder[a[1].severity]||9) - (sevOrder[b[1].severity]||9) || b[1].totalViolations - a[1].totalViolations)
+    .map(([name, d]) => ({ name, ...d, actors: [...d.actors], runs: d.runs.size }));
 
   // Build actor timeline
   const actorTimeline = {};
@@ -194,6 +219,7 @@ app.get('/api/arc/:id', (req, res) => {
   const firstCrit = firstRun.crit, lastCrit = lastRun.crit;
   const trend = lastCrit < firstCrit * 0.8 ? '↓ Improving' : lastCrit > firstCrit * 1.1 ? '↑ Worsening' : '→ Stable';
   const trendColor = trend.startsWith('↓') ? '#27ae60' : trend.startsWith('↑') ? '#e05252' : '#f39c12';
+  const sevOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 
   const rowsHTML = runs.map((r,i) => {
     const prev = runs[i-1];
@@ -355,6 +381,57 @@ app.get('/api/arc/:id', (req, res) => {
     <div class="section-title">✅ Resolved Actors — No Longer Active</div>
     <div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>
   </div>` : ''}
+
+  <!-- Threats identified -->
+  ${topPolicies.length ? `<div class="section">
+    <div class="section-title">🎯 Threats Identified During Engagement</div>
+    <table>
+      <thead><tr><th>Finding / Policy</th><th>Severity</th><th>Total Violations</th><th>Actors Affected</th><th>Runs Present</th><th>First Seen</th><th>Last Seen</th></tr></thead>
+      <tbody>${topPolicies.map(p => {
+        const sevColor = p.severity==='Critical'?'#e05252':p.severity==='High'?'#e07d22':p.severity==='Medium'?'#f0b429':'#888';
+        return `<tr>
+          <td style="font-weight:600;max-width:300px">${p.name}</td>
+          <td><span style="color:${sevColor};font-weight:700;font-size:11px">${p.severity}</span></td>
+          <td style="font-family:monospace;font-weight:700;color:#333">${p.totalViolations.toLocaleString()}</td>
+          <td style="font-size:11px;color:#666">${p.actors.slice(0,3).map(a=>a.split(/[-_@]/)[0]).join(', ')}${p.actors.length>3?` +${p.actors.length-3}`:''}</td>
+          <td style="font-family:monospace">${p.runs} / ${runs.length}</td>
+          <td style="font-family:monospace;font-size:11px;color:#999">${p.firstSeen}</td>
+          <td style="font-family:monospace;font-size:11px;color:#999">${p.lastSeen}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>` : ''}
+
+  <!-- Per-actor threat detail -->
+  <div class="section">
+    <div class="section-title">👤 Actor Threat Detail</div>
+    ${Object.entries(actorPolicyMap).sort((a,b) => {
+      const sevA = Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
+      const sevB = Math.min(...Object.values(b[1]).map(p=>sevOrder[p.severity]||9));
+      return sevA - sevB;
+    }).map(([actor, policies]) => {
+      const sortedPolicies = Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
+      const topSev = sortedPolicies[0]?.[1]?.severity || 'Medium';
+      const sevColor = topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
+      const timeline = actorTimeline[actor] || {};
+      return `<div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-family:monospace;font-size:12px;font-weight:700;color:#1a1a2e">${actor}</div>
+            <div style="font-size:10px;color:#999;margin-top:2px">First seen: ${timeline.first||'—'} · Last seen: ${timeline.last||'—'} · ${timeline.count||0}/${runs.length} runs</div>
+          </div>
+          <span style="color:${sevColor};font-weight:800;font-size:11px;background:${sevColor}18;padding:3px 10px;border-radius:6px">${topSev}</span>
+        </div>
+        <table style="margin:0">
+          <thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations (single run)</th></tr></thead>
+          <tbody>${sortedPolicies.map(([p, d])=>{
+            const c = d.severity==='Critical'?'#e05252':d.severity==='High'?'#e07d22':d.severity==='Medium'?'#f0b429':'#888';
+            return `<tr><td>${p}</td><td style="color:${c};font-weight:700;font-size:11px">${d.severity}</td><td style="font-family:monospace">${d.maxViolations.toLocaleString()}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+    }).join('')}
+  </div>
 
   <div class="section">
     <div class="section-title">All Actors Observed During Engagement</div>
