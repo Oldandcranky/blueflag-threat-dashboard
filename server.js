@@ -227,6 +227,46 @@ app.get('/api/arc/:id', (req, res) => {
   const resolvedCount = resolved.length;
   const critChange = lastCrit - firstCrit;
   const critChangeStr = critChange > 0 ? `increased by ${critChange}` : critChange < 0 ? `decreased by ${Math.abs(critChange)}` : 'remained stable';
+
+  // ── Auto-generated Recommendations ───────────────────────────────────────────
+  const RECO_MAP = {
+    'Terraform files with critical or high misconfigurations':        { n:1, action:'Implement mandatory IaC scanning gate',              sla:'14 days', desc:'Enforce automated Terraform scanning (Checkov or tfsec) as a required CI check before any plan is applied. Block merges that introduce critical or high severity misconfigurations. Assign ownership to the infrastructure team.' },
+    'Branch protection bypassed by administrators':                   { n:2, action:'Enforce non-bypassable branch protection',            sla:'7 days',  desc:'Enable non-bypassable branch protection rules at the organization level for all default branches. Require pull request reviews and passing status checks. Log all exception requests via a formal approval process.' },
+    'Credential detected in code commit':                             { n:3, action:'Deploy pre-commit secret scanning',                   sla:'7 days',  desc:'Install pre-commit hooks (git-secrets or truffleHog) to block credentials from entering the codebase. Enable GitHub Advanced Security secret scanning with push protection. Rotate any credentials identified in this engagement immediately.' },
+    'Code scans with critical or high vulnerabilities':               { n:4, action:'Add SAST blocking gate to CI pipeline',               sla:'21 days', desc:'Integrate code vulnerability scanning into the CI pipeline with a blocking gate for Critical/High severity findings. Triage existing findings and establish a 30-day remediation SLA for any new criticals introduced.' },
+    'Personal access tokens with write access':                       { n:5, action:'Enforce PAT rotation and access review',              sla:'7 days',  desc:'Immediately revoke all personal access tokens inactive for 30+ days with write access. Implement a quarterly PAT rotation policy and restrict PAT scope to the minimum required permissions. Consider migrating to short-lived GitHub Apps tokens.' },
+    'Merged pull requests with check run failures':                   { n:6, action:'Require passing CI checks before merge',              sla:'14 days', desc:'Configure branch protection rules to require all status checks to pass before merging. Remove any admin override permissions that allow bypassing failed checks. This prevents broken or vulnerable code from reaching the default branch.' },
+    'Open source packages with critical vulnerabilities':             { n:4, action:'Block critical OSS vulnerabilities at CI',            sla:'14 days', desc:'Integrate SCA (Software Composition Analysis) as a required pipeline gate. Block any PR introducing packages with CVSS ≥ 9.0. Establish a 30-day remediation SLA for existing high-severity OSS findings.' },
+    'Open source packages with high vulnerabilities':                 { n:5, action:'Remediate high-severity OSS dependency debt',         sla:'30 days', desc:'Audit all flagged dependencies and upgrade to patched versions. Integrate SCA scanning into CI with a policy to block CVSS ≥ 7.0 introductions. Assign ownership to each affected team.' },
+    'Suspicious activity on repository after long period of inactivity': { n:6, action:'Audit and retire dormant service accounts',        sla:'14 days', desc:'Review all service accounts showing activity spikes after extended inactivity. Validate whether each is still required, rotate credentials, and implement just-in-time access provisioning for non-human identities.' },
+    'Unverified commit changes to build configuration files':         { n:5, action:'Enforce signed commits on CI/CD configurations',     sla:'21 days', desc:'Require GPG-signed commits for changes to build configuration files (.yml, Dockerfile, Makefile). Add a mandatory review requirement for any CI/CD configuration change.' },
+    'PRs approved by users with no prior commit history':             { n:6, action:'Restrict PR approval rights to active contributors', sla:'14 days', desc:'Audit all identities with PR approval permissions and remove access from accounts with no meaningful commit history. Implement CODEOWNERS files to require domain-expert review for sensitive paths.' },
+    'Suspicious spike of activity on new repositories by identities': { n:5, action:'Investigate and restrict service account repo access',sla:'7 days',  desc:'Immediately investigate the service account showing repository creation spikes. Restrict its permissions to only the repositories it needs. Enable alerts for unusual repository creation activity across all service accounts.' },
+    'Mismatched committer and author names':                          { n:6, action:'Enforce verified committer identity',                sla:'21 days', desc:'Require all commits to be verified via SSH or GPG signing. Audit identities with mismatched author/committer names to identify potential impersonation or shared credential usage.' },
+  };
+
+  const recos = topPolicies.slice(0, 8).map((p, i) => {
+    const match = Object.entries(RECO_MAP).find(([key]) => p.name.toLowerCase().includes(key.toLowerCase().split(' ').slice(0,4).join(' ')));
+    if (!match) return null;
+    const r = match[1];
+    const sevC = p.severity==='Critical'?'#dc2626':p.severity==='High'?'#c2410c':'#a16207';
+    const bgC  = p.severity==='Critical'?'#fee2e2':p.severity==='High'?'#ffedd5':'#fef9c3';
+    return `<div class="rec-item">
+      <div class="rec-num" style="background:${bgC};color:${sevC}">${i+1}</div>
+      <div>
+        <div class="rec-title">${r.action}</div>
+        <div class="rec-desc">${r.desc}</div>
+        <div class="rec-meta">Target: ${r.sla} · Policy: ${p.name} · ${p.totalViolations.toLocaleString()} violations</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  // ── Trend chart data ──────────────────────────────────────────────────────────
+  const trendChartData = JSON.stringify(runs.map(r => ({ date: r.date, crit: r.crit, high: r.high })));
+
+  // ── Cover risk summary ────────────────────────────────────────────────────────
+  const totalHigh = lastRun.high || 0;
+  const totalActors = Object.keys(actorTimeline).length;
   const trendWord = trend.startsWith('↓') ? 'improving' : trend.startsWith('↑') ? 'worsening' : 'stable';
   const execOverviewHTML = `
   <div class="exec-overview">
@@ -383,6 +423,24 @@ table { width:100%; border-collapse:collapse; font-size:12px; }
 th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; border-bottom:2px solid #eee; }
 td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
 tr:last-child td { border-bottom:none; }
+.sec-desc { font-size:12px; color:#888; margin-bottom:16px; line-height:1.6; }
+.rec-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+.rec-item:last-child { border-bottom:none; }
+.rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:3px; }
+.rec-desc { font-size:12px; color:#666; line-height:1.55; }
+.rec-meta { font-size:10px; color:#aaa; margin-top:4px; font-family:monospace; }
+.cover-risk { display:flex; gap:20px; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.08); }
+.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:10px 16px; }
+.cover-risk-val { font-size:22px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:2px; }
+.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.45; }
+.chart-area-crit { fill:rgba(224,82,82,.1); }
+.chart-area-high { fill:rgba(224,125,34,.07); }
+.chart-line-crit { fill:none; stroke:#e05252; stroke-width:2.5; }
+.chart-line-high { fill:none; stroke:#e07d22; stroke-width:1.5; stroke-dasharray:4 2; }
+.axis text { font-size:9px; fill:#aaa; font-family:monospace; }
+.axis line, .axis path { stroke:#eee; }
+.grid line { stroke:#f5f5f5; }
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
 @media print { .pdf-btn{display:none;} .cover,.exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} }
 </style>
@@ -401,11 +459,19 @@ tr:last-child td { border-bottom:none; }
     <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
     <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
   </div>
+  <div class="cover-risk">
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#e05252">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#e07d22">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#27ae60">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Unique Policies Triggered</div></div>
+  </div>
 </div>
 
 <div class="body">
 
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
+<p class="sec-desc">A high-level snapshot of ${tenant.name}'s developer identity risk posture over ${engagementDays} days of continuous monitoring — key metrics, overall direction, and critical actions required.</p>
 <div class="kpi-strip">
   <div class="kpi-tile accent"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
   <div class="kpi-tile"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
@@ -422,12 +488,14 @@ ${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div
 ${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. This demonstrates that BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
 
 <div class="sec-header"><div class="sec-num">2</div><div class="sec-name">Risk Flow — Identities → Policies → Severity</div></div>
+<p class="sec-desc">This diagram maps each flagged identity to the specific policies they violated and the resulting severity distribution. Wider flows indicate higher violation counts.</p>
 <div class="card">
   <div class="card-title">Identities → Policies → Severity</div>
   <svg id="sankeyChart" height="320"></svg>
 </div>
 
 <div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Threats Identified</div></div>
+<p class="sec-desc">All policy violations observed during the engagement, aggregated across every monitoring run. Sorted by severity then total violation volume.</p>
 <div class="two-col">
   <div class="card">
     <div class="card-title">Top Violations by Volume</div>
@@ -461,6 +529,7 @@ ${topPolicies.length ? `
 </div>` : ''}
 
 <div class="sec-header"><div class="sec-num">4</div><div class="sec-name">Identity Detail</div></div>
+<p class="sec-desc">Per-identity breakdown of every policy violation observed — showing severity, maximum violation count in a single run, and engagement timeline.</p>
 ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sA=Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
   const sB=Math.min(...Object.values(b[1]).map(p=>sevOrder[p.severity]||9));
@@ -485,13 +554,28 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   </div>`;
 }).join('')}
 
-<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Run History</div></div>
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">30-Day Risk Trend</div></div>
+<p class="sec-desc">Critical and high findings over the engagement period. Downward movement indicates remediation; flat or upward movement indicates unresolved risk.</p>
 <div class="card">
+  <div style="margin-bottom:10px;display:flex;gap:16px;align-items:center">
+    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e05252;border-radius:2px"></span>Critical</span>
+    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e07d22;border-radius:2px;border-bottom:1px dashed #e07d22"></span>High</span>
+  </div>
+  <svg id="trendChart" style="width:100%;overflow:visible" height="180"></svg>
+  <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:14px">
   <table>
     <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
     <tbody>${rowsHTML}</tbody>
   </table>
+  </div>
 </div>
+
+${recos ? `
+<div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Recommendations</div></div>
+<p class="sec-desc">Prioritized remediation actions based on findings observed during this engagement. Each recommendation targets a specific policy that fired during monitoring.</p>
+<div class="card">
+  ${recos}
+</div>` : ''}
 
 </div>
 
@@ -502,6 +586,35 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
 </div>
 
 <script>
+// ── Trend Chart ───────────────────────────────────────────────────────────────
+(function() {
+  const data = ${trendChartData};
+  if (data.length < 2) return;
+  const el = document.getElementById('trendChart');
+  if (!el) return;
+  const W = el.parentElement.clientWidth - 48, H = 180;
+  const pad = { t:10, r:10, b:30, l:48 };
+  const svg = d3.select('#trendChart').attr('width', W).attr('height', H);
+  const w = W - pad.l - pad.r, h = H - pad.t - pad.b;
+  const g = svg.append('g').attr('transform', \`translate(\${pad.l},\${pad.t})\`);
+  const dates = data.map(d => new Date(d.date));
+  const x = d3.scaleTime().domain(d3.extent(dates)).range([0, w]);
+  const maxY = d3.max(data, d => Math.max(d.crit, d.high)) * 1.12 || 10;
+  const y = d3.scaleLinear().domain([0, maxY]).range([h, 0]);
+  g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(4).tickSize(-w).tickFormat(''));
+  const areaCrit = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.crit)).curve(d3.curveMonotoneX);
+  const areaHigh = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.high)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('class','chart-area-high').attr('d',areaHigh);
+  g.append('path').datum(data).attr('class','chart-area-crit').attr('d',areaCrit);
+  const lineCrit = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.crit)).curve(d3.curveMonotoneX);
+  const lineHigh = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.high)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('class','chart-line-high').attr('d',lineHigh);
+  g.append('path').datum(data).attr('class','chart-line-crit').attr('d',lineCrit);
+  g.append('g').attr('class','axis').attr('transform',\`translate(0,\${h})\`).call(d3.axisBottom(x).ticks(Math.min(data.length,8)).tickFormat(d3.timeFormat('%b %d')));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',d')));
+})();
+
+// ── Sankey ────────────────────────────────────────────────────────────────────
 (function() {
   const raw = ${sankeyData || 'null'};
   if (!raw || !raw.nodes.length) return;
