@@ -267,29 +267,6 @@ app.get('/api/arc/:id', (req, res) => {
   // ── Cover risk summary ────────────────────────────────────────────────────────
   const totalHigh = lastRun.high || 0;
   const totalActors = Object.keys(actorTimeline).length;
-  const trendWord = trend.startsWith('↓') ? 'improving' : trend.startsWith('↑') ? 'worsening' : 'stable';
-  const execOverviewHTML = `
-  <div class="exec-overview">
-    <div class="exec-title">Executive Overview</div>
-    <div class="exec-kpis">
-      <div class="exec-kpi"><div class="exec-kpi-val" style="color:#e05252">${lastCrit.toLocaleString()}</div><div class="exec-kpi-label">Critical Findings (Latest)</div></div>
-      <div class="exec-kpi"><div class="exec-kpi-val">${chronicCount}</div><div class="exec-kpi-label">Persistent Identities</div></div>
-      <div class="exec-kpi"><div class="exec-kpi-val" style="color:#27ae60">${resolvedCount}</div><div class="exec-kpi-label">Resolved This Period</div></div>
-      <div class="exec-kpi"><div class="exec-kpi-val">${engagementDays}</div><div class="exec-kpi-label">Days Under Monitoring</div></div>
-    </div>
-    <div class="exec-body">
-      <p>Over the past <strong>${engagementDays} days</strong>, BlueFlag Security monitored <strong>${tenant.name}</strong> across <strong>${runs.length} daily scans</strong>.
-      Overall, critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastCrit.toLocaleString()})` : ''}.
-      </p>
-      ${topThreat ? `<p style="margin-top:10px">The highest-priority finding throughout this engagement has been <strong>${topThreat.name}</strong> (${topThreat.severity}),
-      which fired across <strong>${topThreat.runs} of ${runs.length} monitoring runs</strong> with <strong>${topThreat.totalViolations.toLocaleString()} total violations</strong>
-      affecting ${topThreat.actors.length} ${topThreat.actors.length === 1 ? 'identity' : 'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
-      ${chronicCount > 0 ? `<p style="margin-top:10px"><strong>${chronicCount} ${chronicCount === 1 ? 'identity has' : 'identities have'} appeared in every monitoring run</strong> —
-      indicating these are not transient issues but structural risks embedded in the development workflow.
-      ${resolvedCount > 0 ? `Positively, <strong>${resolvedCount} ${resolvedCount === 1 ? 'identity was' : 'identities were'} resolved</strong> during this period, demonstrating that remediation is possible when findings are actioned.` : 'No identities have been remediated during this period.'}
-      </p>` : ''}
-    </div>
-  </div>`;
 
   const rowsHTML = runs.map((r,i) => {
     const prev = runs[i-1];
@@ -385,13 +362,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; flex-wrap:wrap; }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
 .cover-meta-val { font-size:14px; font-weight:700; }
-.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; float:right; }
+.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; }
+.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.25); }
 .body { padding:0 40px; }
-.sec-header { display:flex; align-items:center; gap:14px; margin:36px 0 16px; }
+.sec-header { display:flex; align-items:center; gap:14px; margin:36px 0 8px; }
 .sec-num { width:32px; height:32px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
-.sec-desc { font-size:12px; color:#888; margin-bottom:16px; line-height:1.6; }
+.sec-desc { font-size:12px; color:#888; margin-bottom:14px; line-height:1.6; }
 .card { background:#fff; border:1px solid #e0e4f0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
 .card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
 .kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
@@ -423,7 +401,6 @@ table { width:100%; border-collapse:collapse; font-size:12px; }
 th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; border-bottom:2px solid #eee; }
 td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
 tr:last-child td { border-bottom:none; }
-.sec-desc { font-size:12px; color:#888; margin-bottom:16px; line-height:1.6; }
 .rec-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
 .rec-item:last-child { border-bottom:none; }
 .rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
@@ -448,8 +425,10 @@ tr:last-child td { border-bottom:none; }
 <div class="page">
 
 <div class="cover">
-  <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
-  <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+  <div class="cover-top">
+    <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+    <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
+  </div>
   <div class="cover-title">${tenant.name}<br>Developer Identity Risk Assessment</div>
   <div class="cover-sub">${tenant.url}</div>
   <div class="cover-meta">
@@ -561,7 +540,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e05252;border-radius:2px"></span>Critical</span>
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e07d22;border-radius:2px;border-bottom:1px dashed #e07d22"></span>High</span>
   </div>
-  <svg id="trendChart" style="width:100%;overflow:visible" height="180"></svg>
+  <svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>
   <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:14px">
   <table>
     <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
@@ -726,11 +705,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 /* Cover */
 .cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
 .cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
-.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:32px; }
+.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); }
 .cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
 .cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
-.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; }
-.cover-meta-item { }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; flex-wrap:wrap; }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
 .cover-meta-val { font-size:14px; font-weight:700; }
 .demo-ribbon { background:#ffc107; color:#1a1a2e; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:4px 14px; border-radius:3px; display:inline-block; margin-bottom:20px; }
@@ -824,7 +803,8 @@ tr:last-child td { border-bottom:none; }
 #sankeyChart { overflow:visible; }
 
 /* PDF button */
-.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; margin-top:20px; transition:background .15s; }
+.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0; }
+.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.25); }
 /* Footer */
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
@@ -844,10 +824,13 @@ tr:last-child td { border-bottom:none; }
 <!-- ── COVER ──────────────────────────────────────────────────────────── -->
 <div class="cover">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
-    <div class="demo-ribbon">Demo Report</div>
+    <div class="cover-top">
+    <div>
+      <div class="demo-ribbon" style="margin-bottom:12px">Demo Report</div>
+      <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+    </div>
     <a href="/demo-arc/pdf" class="pdf-btn">↓ Download PDF</a>
   </div>
-  <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
   <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
   <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
   <div class="cover-meta">
