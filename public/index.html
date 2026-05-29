@@ -1238,6 +1238,7 @@ function renderTenantDetail(id) {
     <div class="insights-toggle">
       <button class="insight-tab active" id="insightEmailTab-${id}" onclick="setInsightMode('${id}','email')">Customer Email</button>
       <button class="insight-tab" id="insightEvidenceTab-${id}" onclick="setInsightMode('${id}','evidence')">Technical Evidence</button>
+      <button class="insight-tab" onclick="downloadArc('${id}')">↓ Identity Lifecycle Review</button>
     </div>
 
     <div class="insight-pane active" id="insightEmailPane-${id}">
@@ -1251,7 +1252,6 @@ function renderTenantDetail(id) {
         <div class="ai-actions">
           <button class="copy-btn" id="aiCopy-${id}" onclick="copyEmail('${id}')">⎘ Copy Email</button>
           <button class="btn btn-ghost btn-sm" id="aiBtn-${id}" onclick="generateEmail('${id}')">↻ Regenerate Email</button>
-          <button class="arc-btn" onclick="downloadArc('${id}')" style="margin-left:auto">↓ Identity Lifecycle Review</button>
         </div>
       </div>
     </div>
@@ -1270,8 +1270,7 @@ function renderTenantDetail(id) {
     ${topFindBanner ? `<div style="max-width:900px;margin-bottom:4px;">${topFindBanner}</div>` : ''}
     <div class="detail-grid">
       ${sectionWrap('threat-context', "Today's Threat Context", intelHTML)}
-      ${sectionWrap('status', 'Status', statusBody)}
-      ${riskBar ? sectionWrap('risk', 'Risk Exposure', `<div class="risk-bar">${riskBar}</div>`) : ''}
+      ${sectionWrap('status', 'Status & Risk Exposure', statusBody + (riskBar ? `<div class="risk-bar" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">${riskBar}</div>` : ''))}
       ${sectionWrap('insights', 'Insights', insightsBody)}
       ${ah ? sectionWrap('findings', 'Key Findings', ah) : ''}
     </div>`;
