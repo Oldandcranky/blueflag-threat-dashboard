@@ -6,11 +6,11 @@ services:
     ports:
       - "3737:3737"
     volumes:
-      - ./data/config.json:/app/config.json
-      - ./data/snapshots:/app/snapshots
-      - ./data/reports:/app/reports
-      - ./data/intel.json:/app/intel.json
-      - ./data/debug:/app/debug
+      - ../data/config.json:/app/config.json
+      - ../data/snapshots:/app/snapshots
+      - ../data/reports:/app/reports
+      - ../data/intel.json:/app/intel.json
+      - ../data/debug:/app/debug
     environment:
       - TZ=America/Chicago
     shm_size: '256mb'
