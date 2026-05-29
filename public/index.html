@@ -1524,11 +1524,11 @@ async function openIdentities(actor, tenantUrl) {
   `;
 
   openBtn.onclick = async () => {
-    const source = identity.source || 'GitHub';
-    const base   = tenantUrl.replace(/\/$/, '');
-    const url    = `${base}/identities?identity=${encodeURIComponent(actor)}&source=${encodeURIComponent(source)}`;
+    const base = tenantUrl.replace(/\/$/, '');
+    const url  = `${base}/identities?user=${encodeURIComponent(actor)}`;
+    try { await navigator.clipboard.writeText(actor); } catch {}
     window.open(url, '_blank');
-    showToast(`Opening ${display} in BlueFlag...`);
+    showToast(`Username copied — paste in Account Name filter if not auto-applied`);
   };
 
   modal.classList.add('open');
