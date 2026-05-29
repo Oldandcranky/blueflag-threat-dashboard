@@ -196,8 +196,8 @@ function scheduleDailyRun() {
 scheduleDailyRun();
 
 // ── Startup catch-up run ──────────────────────────────────────────────────────
-// If the most recent snapshot is older than 20 hours, run immediately on boot.
-// Handles the case where the Mac was off and missed the scheduled 7am run.
+// If today's scheduled run time has already passed but no scrape has happened
+// today, run immediately on boot. Handles the Mac sleeping through the cron.
 function startupCatchupRun() {
   if (activeProc) return;
   if (!fs.existsSync(snapDir)) return;
@@ -212,11 +212,18 @@ function startupCatchupRun() {
 
   if (!newest) return;
 
-  const hoursSince = (Date.now() - new Date(newest)) / 3600000;
-  console.log(`[startup] Last scrape: ${new Date(newest).toLocaleString()} (${hoursSince.toFixed(1)}h ago)`);
+  const cfg = readConfig();
+  const [hh, mm] = (cfg.runTime || '07:00').split(':').map(Number);
+  const now = new Date();
+  const scheduledToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+  const lastScrape = new Date(newest);
 
-  if (hoursSince >= 20) {
-    console.log(`[startup] Stale data — running catch-up scrape in 10s`);
+  console.log(`[startup] Last scrape: ${lastScrape.toLocaleString()}`);
+  console.log(`[startup] Scheduled run today: ${scheduledToday.toLocaleString()}`);
+
+  // Catch-up if: scheduled time has passed today AND last scrape was before today's scheduled run
+  if (now >= scheduledToday && lastScrape < scheduledToday) {
+    console.log(`[startup] Missed today's scheduled run — catch-up scrape in 10s`);
     setTimeout(() => {
       if (activeProc) return;
       const proc = spawn('node', ['run.js'], { cwd: DIR });
@@ -229,7 +236,7 @@ function startupCatchupRun() {
       });
     }, 10000);
   } else {
-    console.log(`[startup] Data is fresh (${hoursSince.toFixed(1)}h) — no catch-up needed`);
+    console.log(`[startup] No catch-up needed — data is current`);
   }
 }
 startupCatchupRun();
