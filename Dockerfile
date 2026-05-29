@@ -1,11 +1,15 @@
-# Use the official Playwright image — Chromium and all dependencies pre-installed
-FROM mcr.microsoft.com/playwright:v1.44.0-jammy
+# Standard Node image — Playwright installs its own matching Chromium at build time
+# so the browser version always matches the package version, no matter what.
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install Node dependencies (skip browser download — image already has Chromium)
+# Install Node dependencies
 COPY package*.json ./
-RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --omit=dev
+RUN npm ci --omit=dev
+
+# Install Playwright's Chromium + all system dependencies it needs
+RUN npx playwright install chromium --with-deps
 
 # Copy app source
 COPY . .
