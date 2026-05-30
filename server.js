@@ -455,7 +455,19 @@ tr:hover td { background:#fafbff; }
 /* ── PDF button ─────────────────────────────────────────────────────────── */
 .pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.22); }
-@media print { * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; } .pdf-btn{display:none;} .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} }
+@media print {
+  * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
+  .pdf-btn { display:none; }
+  .cover, .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .page { padding:0; }
+  /* Keep section header glued to the content that follows it */
+  .sec-header { break-after:avoid; page-break-after:avoid; }
+  .sec-desc   { break-after:avoid; page-break-after:avoid; }
+  /* Cards and identity detail cards don't break inside */
+  .card { break-inside:avoid; page-break-inside:avoid; }
+  /* Keep the trend chart header + card together */
+  .trend-section { break-inside:avoid; page-break-inside:avoid; }
+}
 </style>
 </head><body>
 <div class="page">
@@ -521,7 +533,7 @@ ${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</d
     ${topViolBar || '<div style="color:#aaa;font-size:12px">No data yet</div>'}
   </div>
   <div class="card">
-    <div class="card-title">Persistent Identities — Present 70%+ of Runs</div>
+    <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
     ${chronics.length ? `<div style="margin-bottom:10px">${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px">None — all identities resolved</div>'}
     ${resolved.length ? `<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>` : ''}
   </div>
@@ -580,6 +592,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   </div>`;
 }).join('')}
 
+<div class="trend-section">
 <div class="sec-header"><div class="sec-num">5</div><div class="sec-name">${engagementDays}-Day Risk Trend</div></div>
 <p class="sec-desc">Critical and high findings over the ${engagementDays}-day engagement. Downward movement indicates remediation; flat or upward movement indicates unresolved risk.</p>
 <div class="card">
@@ -594,6 +607,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
     <tbody>${rowsHTML}</tbody>
   </table>
   </div>
+</div>
 </div>
 
 ${recos ? `
