@@ -461,7 +461,7 @@ tr:hover td { background:#fafbff; }
   .cover, .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .page { padding:0; }
   /* Buffer at top/bottom of each page */
-  @page { margin: 18px 0 14px; }
+  @page { margin: 36px 0 20px; }
   /* Keep section header glued to its content */
   .sec-header { break-after:avoid; page-break-after:avoid; }
   .sec-desc   { break-after:avoid; page-break-after:avoid; }
