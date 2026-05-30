@@ -472,8 +472,8 @@ tr:hover td { background:#fafbff; }
     </div>
     <div class="cover-meta-grid">
       <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Engagement Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Assessments</div><div class="cover-meta-val">${runs.length}</div></div>
       <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
       <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
     </div>
@@ -490,7 +490,7 @@ tr:hover td { background:#fafbff; }
 <div class="body">
 
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
-<p class="sec-desc">A high-level snapshot of ${tenant.name}'s developer identity risk posture over ${engagementDays} days of continuous monitoring — key metrics, overall direction, and critical actions required.</p>
+<p class="sec-desc">A high-level snapshot of the critical findings BlueFlag Security identified in ${tenant.name}'s environment over a ${engagementDays}-day engagement — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip">
   <div class="kpi-tile accent"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
   <div class="kpi-tile"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
@@ -499,22 +499,22 @@ tr:hover td { background:#fafbff; }
 </div>
 <div class="exec-dark">
   <div class="exec-dark-title">Executive Summary</div>
-  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Over the past <strong style="color:#fff">${engagementDays} days</strong>, BlueFlag Security monitored <strong style="color:#fff">${tenant.name}</strong> across <strong style="color:#fff">${runs.length} daily scans</strong>. Overall, critical findings have ${critChangeStr} since monitoring began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
-  ${topThreat ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">The highest-priority finding has been <strong style="color:#fff">${topThreat.name}</strong> (${topThreat.severity}), present across <strong style="color:#fff">${topThreat.runs} of ${runs.length} runs</strong> with <strong style="color:#fff">${topThreat.totalViolations.toLocaleString()} total violations</strong> affecting ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
-  ${chronicCount > 0 ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8)"><strong style="color:#fff">${chronicCount} ${chronicCount===1?'identity has':'identities have'} appeared in every monitoring run</strong> — indicating structural risks embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong style="color:#fff">${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this period.` : 'No identities have been remediated during this period.'}</p>` : ''}
+  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Over a <strong style="color:#fff">${engagementDays}-day engagement</strong>, BlueFlag Security found critical findings across <strong style="color:#fff">${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
+  ${topThreat ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">The highest-priority finding has been <strong style="color:#fff">${topThreat.name}</strong> (${topThreat.severity}), found in <strong style="color:#fff">${topThreat.runs} of ${runs.length} assessments</strong> with <strong style="color:#fff">${topThreat.totalViolations.toLocaleString()} total violations</strong> affecting ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
+  ${chronicCount > 0 ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8)"><strong style="color:#fff">${chronicCount} ${chronicCount===1?'identity has':'identities have'} been flagged in every assessment</strong> — indicating structural risks embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong style="color:#fff">${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement.` : 'No identities have been remediated during this engagement.'}</p>` : ''}
 </div>
-${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} runs, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
+${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> BlueFlag Security found ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} assessments, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
 ${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. This demonstrates that BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
 
 <div class="sec-header"><div class="sec-num">2</div><div class="sec-name">Risk Flow — Identities → Policies → Severity</div></div>
-<p class="sec-desc">This diagram maps each flagged identity to the specific policies they violated and the resulting severity distribution. Wider flows indicate higher violation counts.</p>
+<p class="sec-desc">This diagram maps each identity where BlueFlag Security found violations to the specific policies triggered and the resulting severity distribution. Wider flows indicate higher violation counts.</p>
 <div class="card">
   <div class="card-title">Identities → Policies → Severity</div>
   <svg id="sankeyChart" height="320"></svg>
 </div>
 
 <div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Threats Identified</div></div>
-<p class="sec-desc">All policy violations observed during the engagement, aggregated across every monitoring run. Sorted by severity then total violation volume.</p>
+<p class="sec-desc">All findings BlueFlag Security identified during this engagement, aggregated across every assessment. Sorted by severity then total violation volume.</p>
 <div class="two-col">
   <div class="card">
     <div class="card-title">Top Violations by Volume</div>
@@ -539,7 +539,7 @@ ${topPolicies.length ? `
         <td><span class="sev ${sc}">${p.severity}</span></td>
         <td style="font-family:monospace;font-weight:700">${p.totalViolations.toLocaleString()}</td>
         <td style="font-size:11px;color:#666">${p.actors.slice(0,3).map(a=>a.split(/[-_@]/)[0]).join(', ')}${p.actors.length>3?` +${p.actors.length-3}`:''}</td>
-        <td style="font-family:monospace">${p.runs}/${runs.length}</td>
+        <td style="font-family:monospace">${p.runs}/${runs.length} assessments</td>
         <td style="font-family:monospace;font-size:10px;color:#aaa">${p.firstSeen}</td>
         <td style="font-family:monospace;font-size:10px;color:#aaa">${p.lastSeen}</td>
       </tr>`;
@@ -548,7 +548,7 @@ ${topPolicies.length ? `
 </div>` : ''}
 
 <div class="sec-header"><div class="sec-num">4</div><div class="sec-name">Identity Detail</div></div>
-<p class="sec-desc">Per-identity breakdown of every policy violation observed — showing severity, maximum violation count in a single run, and engagement timeline.</p>
+<p class="sec-desc">Per-identity breakdown of every violation BlueFlag Security found — showing severity, maximum violation count in a single assessment, and engagement timeline.</p>
 ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sA=Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
   const sB=Math.min(...Object.values(b[1]).map(p=>sevOrder[p.severity]||9));
@@ -566,7 +566,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
     <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
       <div>
         <div style="font-family:monospace;font-size:13px;font-weight:700;color:#0d1e3c;word-break:break-all">${actor}</div>
-        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs · ${totalV.toLocaleString()} total violations</div>
+        <div style="font-size:10px;color:#888;margin-top:3px">First found: ${tl.first||'—'} · Last found: ${tl.last||'—'} · ${tl.count||0}/${runs.length} assessments · ${totalV.toLocaleString()} total violations</div>
       </div>
       <span class="sev ${sc}" style="font-size:11px;padding:4px 12px;flex-shrink:0;margin-left:12px">${topSev}</span>
     </div>
@@ -587,7 +587,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e05252;border-radius:2px"></span>Critical</span>
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e07d22;border-radius:2px;border-bottom:1px dashed #e07d22"></span>High</span>
   </div>
-  ${runs.length >= 2 ? `<svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>` : `<div style="height:60px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;font-family:monospace">Trend chart available after 2+ monitoring runs</div>`}
+  ${runs.length >= 2 ? `<svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>` : `<div style="height:60px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;font-family:monospace">Trend chart available after 2+ assessments</div>`}
   <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:14px">
   <table>
     <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
@@ -598,7 +598,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
 
 ${recos ? `
 <div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Recommendations</div></div>
-<p class="sec-desc">Prioritized remediation actions based on findings observed during this engagement. Each recommendation targets a specific policy that fired during monitoring.</p>
+<p class="sec-desc">Prioritized remediation actions based on findings BlueFlag Security identified during this engagement. Each recommendation targets a specific policy violation found.</p>
 <div class="card">
   ${recos}
 </div>` : ''}
