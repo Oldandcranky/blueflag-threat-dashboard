@@ -381,9 +381,9 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 /* ── Body (light theme) ─────────────────────────────────────────────────── */
 .body { padding:0 36px; }
 .sec-header { display:flex; align-items:center; gap:12px; margin:28px 0 6px; }
-.sec-num { width:28px; height:28px; border-radius:7px; background:#1550FF; color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sec-name { font-size:17px; font-weight:800; color:#0d1e3c; }
-.sec-desc { font-size:11px; color:#888; margin-bottom:10px; line-height:1.55; }
+.sec-num { width:30px; height:30px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
+.sec-desc { font-size:12px; color:#888; margin-bottom:10px; line-height:1.55; }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
 .card { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 20px; margin-bottom:12px; }
@@ -427,8 +427,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 /* ── Tables ────────────────────────────────────────────────────────────── */
 #sankeyChart { overflow:visible; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
-th { text-align:left; padding:7px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
-td { padding:7px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; color:#1a1a2e; }
+th { text-align:left; padding:8px 10px; background:#f8f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
+td { padding:8px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; color:#1a1a2e; font-size:12px; }
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:#fafbff; }
 
@@ -460,12 +460,12 @@ tr:hover td { background:#fafbff; }
   .pdf-btn { display:none; }
   .cover, .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .page { padding:0; }
-  /* Keep section header glued to the content that follows it */
+  /* Buffer at top/bottom of each page */
+  @page { margin: 18px 0 14px; }
+  /* Keep section header glued to its content */
   .sec-header { break-after:avoid; page-break-after:avoid; }
   .sec-desc   { break-after:avoid; page-break-after:avoid; }
-  /* Cards and identity detail cards don't break inside */
   .card { break-inside:avoid; page-break-inside:avoid; }
-  /* Keep the trend chart header + card together */
   .trend-section { break-inside:avoid; page-break-inside:avoid; }
 }
 </style>
@@ -1364,20 +1364,10 @@ async function renderPDF(url, filename, res, headerLabel) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500); // let D3 finish rendering
-    const label = headerLabel || 'Identity Lifecycle Review';
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: `<div style="width:100%;font-size:7px;font-family:-apple-system,sans-serif;color:#aaa;padding:8px 40px 6px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8ecf0;box-sizing:border-box;">
-        <span style="font-weight:600;letter-spacing:.05em">BlueFlag Security &nbsp;·&nbsp; ${label} &nbsp;·&nbsp; Confidential</span>
-        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
-      </div>`,
-      footerTemplate: `<div style="width:100%;font-size:7px;font-family:-apple-system,sans-serif;color:#aaa;padding:6px 40px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e8ecf0;box-sizing:border-box;">
-        <span>BlueFlag Security — Identity Lifecycle Review</span>
-        <span><span class="date"></span></span>
-      </div>`,
-      margin: { top: '28px', right: '0mm', bottom: '28px', left: '0mm' }
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
