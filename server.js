@@ -379,19 +379,19 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.45); }
 
 /* ── Body (light theme) ─────────────────────────────────────────────────── */
-.body { padding:0 44px; }
-.sec-header { display:flex; align-items:center; gap:14px; margin:40px 0 8px; }
-.sec-num { width:32px; height:32px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sec-name { font-size:19px; font-weight:800; color:#0d1e3c; }
-.sec-desc { font-size:12px; color:#888; margin-bottom:14px; line-height:1.6; }
+.body { padding:0 36px; }
+.sec-header { display:flex; align-items:center; gap:12px; margin:28px 0 6px; }
+.sec-num { width:28px; height:28px; border-radius:7px; background:#1550FF; color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sec-name { font-size:17px; font-weight:800; color:#0d1e3c; }
+.sec-desc { font-size:11px; color:#888; margin-bottom:10px; line-height:1.55; }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
-.card { background:#fff; border:1px solid #e0e4f0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
-.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+.card { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 20px; margin-bottom:12px; }
+.card-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
 
 /* ── KPI strip ─────────────────────────────────────────────────────────── */
-.kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
-.kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:18px; text-align:center; }
+.kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+.kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:8px; padding:14px 16px; text-align:center; }
 .kpi-tile.accent { border-color:#1550FF; background:#f5f8ff; }
 .kpi-val { font-size:30px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:5px; }
 .kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
@@ -427,13 +427,13 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 /* ── Tables ────────────────────────────────────────────────────────────── */
 #sankeyChart { overflow:visible; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
-th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
-td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; color:#1a1a2e; }
+th { text-align:left; padding:7px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
+td { padding:7px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; color:#1a1a2e; }
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:#fafbff; }
 
 /* ── Recommendations ───────────────────────────────────────────────────── */
-.rec-item { display:flex; gap:14px; padding:16px 0; border-bottom:1px solid #f0f0f0; }
+.rec-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #f0f0f0; }
 .rec-item:last-child { border-bottom:none; }
 .rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
 .rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:4px; }
@@ -1356,7 +1356,7 @@ startupCatchupRun();
 // ── PDF Export — server-side render via Playwright ───────────────────────────
 // Playwright is already installed for scraping, so we reuse it here.
 // The page is loaded internally, D3 is given time to paint, then PDF is captured.
-async function renderPDF(url, filename, res) {
+async function renderPDF(url, filename, res, headerLabel) {
   const { chromium } = require('playwright');
   let browser;
   try {
@@ -1364,10 +1364,20 @@ async function renderPDF(url, filename, res) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500); // let D3 finish rendering
+    const label = headerLabel || 'Identity Lifecycle Review';
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
+      displayHeaderFooter: true,
+      headerTemplate: `<div style="width:100%;font-size:7px;font-family:-apple-system,sans-serif;color:#aaa;padding:8px 40px 6px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8ecf0;box-sizing:border-box;">
+        <span style="font-weight:600;letter-spacing:.05em">BlueFlag Security &nbsp;·&nbsp; ${label} &nbsp;·&nbsp; Confidential</span>
+        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+      </div>`,
+      footerTemplate: `<div style="width:100%;font-size:7px;font-family:-apple-system,sans-serif;color:#aaa;padding:6px 40px 8px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e8ecf0;box-sizing:border-box;">
+        <span>BlueFlag Security — Identity Lifecycle Review</span>
+        <span><span class="date"></span></span>
+      </div>`,
+      margin: { top: '28px', right: '0mm', bottom: '28px', left: '0mm' }
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1380,14 +1390,15 @@ async function renderPDF(url, filename, res) {
 }
 
 app.get('/demo-arc/pdf', (req, res) => {
-  renderPDF(`http://localhost:${3737}/demo-arc`, `identity-lifecycle-review-demo-${new Date().toISOString().slice(0,10)}.pdf`, res);
+  renderPDF(`http://localhost:${3737}/demo-arc`, `identity-lifecycle-review-demo-${new Date().toISOString().slice(0,10)}.pdf`, res, 'Acme Corp · Demo Report');
 });
 
 app.get('/api/arc/:id/pdf', (req, res) => {
   const cfg = readConfig();
   const tenant = (cfg.tenants||[]).find(t=>t.id===req.params.id);
   const name = tenant ? tenant.name.toLowerCase().replace(/[^a-z0-9]/g,'-') : req.params.id;
-  renderPDF(`http://localhost:${3737}/api/arc/${req.params.id}`, `${name}-identity-lifecycle-review-${new Date().toISOString().slice(0,10)}.pdf`, res);
+  const label = tenant ? `${tenant.name} · Identity Lifecycle Review` : 'Identity Lifecycle Review';
+  renderPDF(`http://localhost:${3737}/api/arc/${req.params.id}`, `${name}-identity-lifecycle-review-${new Date().toISOString().slice(0,10)}.pdf`, res, label);
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
