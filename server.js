@@ -750,16 +750,13 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
 
 /* Cover */
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; justify-content:space-between; }
-.cover::after { content:''; position:absolute; right:-80px; top:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(21,80,255,.3) 0%,transparent 70%); pointer-events:none; }
-.cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:300px; height:300px; background:radial-gradient(circle,rgba(21,80,255,.15) 0%,transparent 70%); pointer-events:none; }
-.cover-top { display:flex; justify-content:space-between; align-items:flex-start; }
-.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); }
-.cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; padding:60px 0 40px; }
-.cover-title { font-size:42px; font-weight:800; line-height:1.12; margin-bottom:10px; }
-.cover-sub { font-size:15px; opacity:.5; font-family:monospace; }
-.cover-bottom { }
-.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:22px; margin-bottom:24px; flex-wrap:wrap; }
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
+.cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:32px; }
+.cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
+.cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; }
+.cover-meta-item { }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
 .cover-meta-val { font-size:14px; font-weight:700; }
 .demo-ribbon { background:#ffc107; color:#1a1a2e; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:4px 14px; border-radius:3px; display:inline-block; margin-bottom:20px; }
@@ -852,53 +849,24 @@ tr:last-child td { border-bottom:none; }
 /* Sankey */
 #sankeyChart { overflow:visible; }
 
-/* PDF button */
-.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0; }
-.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
-.pdf-btn:hover { background:rgba(255,255,255,.25); }
 /* Footer */
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
-/* Print styles */
-@media print {
-  body { background:#fff; }
-  .pdf-btn { display:none; }
-  .cover { border-radius:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .card, .section { break-inside:avoid; }
-  .page { padding:0; }
-}
 </style>
 </head><body>
 <div class="page">
 
 <!-- ── COVER ──────────────────────────────────────────────────────────── -->
 <div class="cover">
-  <div class="cover-top">
-    <div>
-      <div class="demo-ribbon" style="margin-bottom:12px">Demo Report</div>
-      <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
-    </div>
-    <a href="/demo-arc/pdf" class="pdf-btn">↓ Download PDF</a>
-  </div>
-  <div class="cover-main">
-    <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
-    <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
-  </div>
-  <div class="cover-bottom">
-    <div class="cover-meta">
-      <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">Acme Corp</div></div>
-      <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">Apr 30 – May 29, 2026</div></div>
-      <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">30 Daily Scans</div></div>
-      <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
-      <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
-    </div>
-    <div class="cover-risk">
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">401</div><div class="cover-risk-label">Critical Findings</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">847</div><div class="cover-risk-label">High Findings</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val">12</div><div class="cover-risk-label">Identities Flagged</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">2</div><div class="cover-risk-label">Resolved</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val">12</div><div class="cover-risk-label">Policies Triggered</div></div>
-    </div>
+  <div class="demo-ribbon">Demo Report</div>
+  <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
+  <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
+  <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">Acme Corp</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">Apr 30 – May 29, 2026</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">30 Daily Scans</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+    <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
   </div>
 </div>
 
@@ -906,7 +874,7 @@ tr:last-child td { border-bottom:none; }
 
 <!-- ── SECTION 1: EXECUTIVE SUMMARY ──────────────────────────────────── -->
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
-<p class="sec-desc">A high-level snapshot of Acme Corp's developer identity risk posture over 30 days of continuous monitoring. This section summarizes the key findings and critical actions required.</p>
+<p class="sec-desc">A high-level snapshot of Acme Corp's developer identity risk posture over 30 days of continuous monitoring. This section summarizes the key findings, risk trajectory, and critical actions required.</p>
 
 <div class="kpi-strip">
   <div class="kpi-tile accent"><div class="kpi-val">30</div><div class="kpi-label">Days Monitored</div></div>
@@ -939,11 +907,11 @@ tr:last-child td { border-bottom:none; }
 
 <!-- ── SECTION 3: EXECUTIVE OVERVIEW ──────────────────────────────────── -->
 <div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Executive Overview</div></div>
-<p class="sec-desc">Risk direction, benchmarking against comparable development organizations, and identity distribution breakdown.</p>
+<p class="sec-desc">Risk trajectory, benchmarking against comparable development organizations, and identity distribution breakdown.</p>
 
 <div class="exec-dark">
-  <div class="exec-dark-title">Risk Context</div>
-  <p>Over the 30-day period, critical findings opened at 312 and closed at 284 — a modest 9% improvement driven by the resolution of 2 identities. However, <strong>8 chronic identities remain fully unaddressed</strong>, meaning the underlying risk exposure has not materially improved. Without intervention, the overall picture will worsen as AI tooling continues to expand its footprint in the codebase.</p>
+  <div class="exec-dark-title">Risk Trajectory & Context</div>
+  <p>Acme Corp's risk posture is <strong style="color:#f39c12">→ Stable</strong> over the 30-day period — critical findings opened at 312 and closed at 284, a modest improvement of 9% driven by the resolution of 2 identities. However, <strong>8 chronic identities remain fully unaddressed</strong>, meaning the underlying risk exposure has not materially improved. Without intervention, the trajectory will shift to <strong>Worsening</strong> as AI tooling continues to expand its footprint in the codebase.</p>
   <p>Three agentic AI service accounts introduced during this period now represent <strong>31% of all critical violations observed</strong> — a proportion that will grow as AI coding tools proliferate across the development team.</p>
 </div>
 
@@ -1217,6 +1185,7 @@ tr:last-child td { border-bottom:none; }
   res.setHeader('Content-Type', 'text/html');
   res.send(demo);
 });
+
 
 // ── Run Stream (SSE) + Stop ───────────────────────────────────────────────────
 let activeProc = null;
