@@ -356,77 +356,105 @@ app.get('/api/arc/:id', (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f8; color:#1a1a2e; }
-.page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; justify-content:space-between; border-radius:0; }
-.cover::after { content:''; position:absolute; right:-80px; top:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(21,80,255,.3) 0%,transparent 70%); pointer-events:none; }
-.cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:300px; height:300px; background:radial-gradient(circle,rgba(21,80,255,.15) 0%,transparent 70%); pointer-events:none; }
-.cover-top { display:flex; justify-content:space-between; align-items:flex-start; }
-.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); }
-.cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; padding:60px 0 40px; }
-.cover-title { font-size:42px; font-weight:800; line-height:1.12; margin-bottom:10px; }
-.cover-sub { font-size:15px; opacity:.5; font-family:monospace; }
-.cover-bottom { }
-.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:22px; margin-bottom:24px; flex-wrap:wrap; }
-.cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
-.cover-meta-val { font-size:14px; font-weight:700; }
-.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
-.pdf-btn:hover { background:rgba(255,255,255,.25); }
-.body { padding:0 40px; }
-.sec-header { display:flex; align-items:center; gap:14px; margin:36px 0 8px; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#060e1e; color:#e8edf5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.page { max-width:1140px; margin:0 auto; padding:0 0 60px; background:transparent; }
+
+/* ── Cover ─────────────────────────────────────────────────────────────── */
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; }
+.cover::after { content:''; position:absolute; right:-80px; top:-80px; width:560px; height:560px; background:radial-gradient(circle,rgba(21,80,255,.35) 0%,transparent 70%); pointer-events:none; }
+.cover::before { content:''; position:absolute; left:-60px; bottom:-60px; width:360px; height:360px; background:radial-gradient(circle,rgba(21,80,255,.18) 0%,transparent 70%); pointer-events:none; }
+.cover-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.35); }
+.cover-mid { flex:1; display:flex; align-items:center; gap:48px; padding:64px 0 48px; }
+.cover-title-block { flex:1; }
+.cover-title { font-size:44px; font-weight:800; line-height:1.1; margin-bottom:12px; }
+.cover-sub { font-size:14px; opacity:.45; font-family:monospace; }
+.cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 28px; border-left:1px solid rgba(255,255,255,.12); padding-left:48px; min-width:260px; }
+.cover-meta-item { }
+.cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.35); margin-bottom:3px; }
+.cover-meta-val { font-size:13px; font-weight:700; color:#fff; }
+.cover-risk { display:flex; gap:14px; margin-top:auto; padding-top:32px; border-top:1px solid rgba(255,255,255,.1); }
+.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:16px 20px; flex:1; text-align:center; }
+.cover-risk-val { font-size:30px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
+.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+.body { padding:0 44px; background:transparent; }
+.sec-header { display:flex; align-items:center; gap:14px; margin:40px 0 8px; }
 .sec-num { width:32px; height:32px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
-.sec-desc { font-size:12px; color:#888; margin-bottom:14px; line-height:1.6; }
-.card { background:#fff; border:1px solid #e0e4f0; border-radius:12px; padding:20px 24px; margin-bottom:16px; }
-.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+.sec-name { font-size:19px; font-weight:800; color:#fff; }
+.sec-desc { font-size:12px; color:rgba(255,255,255,.45); margin-bottom:14px; line-height:1.6; }
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.card { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.35); margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,.08); }
+
+/* ── KPI strip ─────────────────────────────────────────────────────────── */
 .kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
-.kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 18px; }
-.kpi-tile.accent { border-color:#1550FF; background:#f5f8ff; }
-.kpi-val { font-size:28px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:4px; }
-.kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
-.kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; }
-.exec-dark { background:linear-gradient(135deg,#0d1e3c,#1a3a6b); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; }
-.exec-dark-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.4); margin-bottom:16px; }
-.exec-dark p { font-size:13px; line-height:1.75; color:rgba(255,255,255,.8); margin-bottom:10px; }
+.kpi-tile { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:18px; text-align:center; }
+.kpi-tile.accent { border-color:rgba(21,80,255,.6); background:rgba(21,80,255,.15); }
+.kpi-val { font-size:30px; font-weight:800; color:#5b9bff; font-family:monospace; line-height:1; margin-bottom:5px; }
+.kpi-val.red { color:#ff6b6b; } .kpi-val.green { color:#69db7c; }
+.kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.35); }
+
+/* ── Exec dark ─────────────────────────────────────────────────────────── */
+.exec-dark { background:rgba(21,80,255,.12); border:1px solid rgba(21,80,255,.25); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; }
+.exec-dark-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.35); margin-bottom:16px; }
+.exec-dark p { font-size:13px; line-height:1.75; color:rgba(255,255,255,.78); margin-bottom:10px; }
 .exec-dark strong { color:#fff; }
+
+/* ── Layout helpers ────────────────────────────────────────────────────── */
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+
+/* ── Callouts ──────────────────────────────────────────────────────────── */
 .callout { border-radius:8px; padding:14px 16px; margin-bottom:12px; display:flex; gap:12px; align-items:flex-start; }
-.callout.red { background:#fff5f5; border:1px solid #fecaca; }
-.callout.green { background:#f0fdf4; border:1px solid #bbf7d0; }
+.callout.red { background:rgba(220,38,38,.12); border:1px solid rgba(220,38,38,.3); }
+.callout.green { background:rgba(22,163,74,.12); border:1px solid rgba(22,163,74,.3); }
 .callout-icon { font-size:18px; flex-shrink:0; }
-.callout-body { font-size:12px; line-height:1.6; color:#444; }
-.callout-body strong { color:#1a1a2e; }
+.callout-body { font-size:12px; line-height:1.6; color:rgba(255,255,255,.78); }
+.callout-body strong { color:#fff; }
+
+/* ── Severity badges ───────────────────────────────────────────────────── */
 .sev { font-weight:700; font-size:10px; padding:2px 7px; border-radius:4px; display:inline-block; }
-.sev.C { background:#fee2e2; color:#dc2626; }
-.sev.H { background:#ffedd5; color:#c2410c; }
-.sev.M { background:#fef9c3; color:#a16207; }
+.sev.C { background:rgba(220,38,38,.25); color:#fca5a5; border:1px solid rgba(220,38,38,.3); }
+.sev.H { background:rgba(194,65,12,.25); color:#fdba74; border:1px solid rgba(194,65,12,.3); }
+.sev.M { background:rgba(161,98,7,.25); color:#fde68a; border:1px solid rgba(161,98,7,.3); }
 .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin:2px; }
-.tag.chronic { background:#ffe8e8; color:#c0392b; }
-.tag.resolved { background:#e8f8ee; color:#27ae60; }
+.tag.chronic { background:rgba(220,38,38,.2); color:#fca5a5; border:1px solid rgba(220,38,38,.25); }
+.tag.resolved { background:rgba(22,163,74,.2); color:#86efac; border:1px solid rgba(22,163,74,.25); }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
 #sankeyChart { overflow:visible; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
-th { text-align:left; padding:9px 10px; background:#f8f9ff; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; border-bottom:2px solid #eee; }
-td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
+th { text-align:left; padding:9px 10px; background:rgba(255,255,255,.06); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.4); border-bottom:1px solid rgba(255,255,255,.1); }
+td { padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.06); vertical-align:top; color:rgba(255,255,255,.8); }
 tr:last-child td { border-bottom:none; }
-.rec-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+tr:hover td { background:rgba(255,255,255,.03); }
+
+/* ── Recommendations ───────────────────────────────────────────────────── */
+.rec-item { display:flex; gap:14px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,.07); }
 .rec-item:last-child { border-bottom:none; }
 .rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
-.rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:3px; }
-.rec-desc { font-size:12px; color:#666; line-height:1.55; }
-.rec-meta { font-size:10px; color:#aaa; margin-top:4px; font-family:monospace; }
-.cover-risk { display:flex; gap:16px; }
-.cover-risk-item { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); border-radius:10px; padding:14px 20px; flex:1; text-align:center; }
-.cover-risk-val { font-size:28px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
-.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.5; }
-.chart-area-crit { fill:rgba(224,82,82,.1); }
-.chart-area-high { fill:rgba(224,125,34,.07); }
-.chart-line-crit { fill:none; stroke:#e05252; stroke-width:2.5; }
-.chart-line-high { fill:none; stroke:#e07d22; stroke-width:1.5; stroke-dasharray:4 2; }
-.axis text { font-size:9px; fill:#aaa; font-family:monospace; }
-.axis line, .axis path { stroke:#eee; }
-.grid line { stroke:#f5f5f5; }
-.footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
-@media print { .pdf-btn{display:none;} .cover,.exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} .cover{page-break-after:always;} }
+.rec-title { font-size:13px; font-weight:700; color:#fff; margin-bottom:4px; }
+.rec-desc { font-size:12px; color:rgba(255,255,255,.65); line-height:1.55; }
+.rec-meta { font-size:10px; color:rgba(255,255,255,.35); margin-top:5px; font-family:monospace; }
+
+/* ── Charts ────────────────────────────────────────────────────────────── */
+.chart-area-crit { fill:rgba(255,107,107,.15); }
+.chart-area-high { fill:rgba(255,169,77,.1); }
+.chart-line-crit { fill:none; stroke:#ff6b6b; stroke-width:2.5; }
+.chart-line-high { fill:none; stroke:#ffa94d; stroke-width:1.5; stroke-dasharray:4 2; }
+.axis text { font-size:9px; fill:rgba(255,255,255,.4); font-family:monospace; }
+.axis line, .axis path { stroke:rgba(255,255,255,.1); }
+.grid line { stroke:rgba(255,255,255,.06); }
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+.footer-bar { background:rgba(0,0,0,.3); border-top:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.35); font-size:10px; padding:16px 44px; display:flex; justify-content:space-between; align-items:center; margin-top:24px; }
+
+/* ── PDF ───────────────────────────────────────────────────────────────── */
+.pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
+.pdf-btn:hover { background:rgba(255,255,255,.22); }
+@media print { * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; } .pdf-btn{display:none;} body{background:#060e1e!important;} .cover{page-break-after:always;} .card{break-inside:avoid;} .page{padding:0;} }
 </style>
 </head><body>
 <div class="page">
@@ -436,25 +464,25 @@ tr:last-child td { border-bottom:none; }
     <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
   </div>
-  <div class="cover-main">
-    <div class="cover-title">${tenant.name}<br>Developer Identity Risk Assessment</div>
-    <div class="cover-sub">${tenant.url}</div>
+  <div class="cover-mid">
+    <div class="cover-title-block">
+      <div class="cover-title">${tenant.name}<br>Developer Identity<br>Risk Assessment</div>
+      <div class="cover-sub" style="margin-top:14px">${tenant.url}</div>
+    </div>
+    <div class="cover-meta-grid">
+      <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+    </div>
   </div>
-  <div class="cover-bottom">
-    <div class="cover-meta">
-      <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
-      <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
-      <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
-      <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
-      <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
-    </div>
-    <div class="cover-risk">
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
-      <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Policies Triggered</div></div>
-    </div>
+  <div class="cover-risk">
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
+    <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Policies Triggered</div></div>
   </div>
 </div>
 
