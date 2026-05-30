@@ -245,21 +245,25 @@ app.get('/api/arc/:id', (req, res) => {
     'Mismatched committer and author names':                          { n:6, action:'Enforce verified committer identity',                sla:'21 days', desc:'Require all commits to be verified via SSH or GPG signing. Audit identities with mismatched author/committer names to identify potential impersonation or shared credential usage.' },
   };
 
-  const recos = topPolicies.slice(0, 8).map((p, i) => {
-    const match = Object.entries(RECO_MAP).find(([key]) => p.name.toLowerCase().includes(key.toLowerCase().split(' ').slice(0,4).join(' ')));
-    if (!match) return null;
-    const r = match[1];
-    const sevC = p.severity==='Critical'?'#dc2626':p.severity==='High'?'#c2410c':'#a16207';
-    const bgC  = p.severity==='Critical'?'#fee2e2':p.severity==='High'?'#ffedd5':'#fef9c3';
-    return `<div class="rec-item">
-      <div class="rec-num" style="background:${bgC};color:${sevC}">${i+1}</div>
-      <div>
-        <div class="rec-title">${r.action}</div>
-        <div class="rec-desc">${r.desc}</div>
-        <div class="rec-meta">Target: ${r.sla} · Policy: ${p.name} · ${p.totalViolations.toLocaleString()} violations</div>
-      </div>
-    </div>`;
-  }).filter(Boolean).join('');
+  const recos = topPolicies.slice(0, 8)
+    .map(p => {
+      const match = Object.entries(RECO_MAP).find(([key]) => p.name.toLowerCase().includes(key.toLowerCase().split(' ').slice(0,4).join(' ')));
+      if (!match) return null;
+      return { p, r: match[1] };
+    })
+    .filter(Boolean)
+    .map(({ p, r }, i) => {
+      const sevC = p.severity==='Critical'?'#dc2626':p.severity==='High'?'#c2410c':'#a16207';
+      const bgC  = p.severity==='Critical'?'#fee2e2':p.severity==='High'?'#ffedd5':'#fef9c3';
+      return `<div class="rec-item">
+        <div class="rec-num" style="background:${bgC};color:${sevC}">${i+1}</div>
+        <div>
+          <div class="rec-title">${r.action}</div>
+          <div class="rec-desc">${r.desc}</div>
+          <div class="rec-meta">Target: ${r.sla} · Policy: ${p.name} · ${p.totalViolations.toLocaleString()} violations</div>
+        </div>
+      </div>`;
+    }).join('');
 
   // ── Trend chart data ──────────────────────────────────────────────────────────
   const trendChartData = JSON.stringify(runs.map(r => ({ date: r.date, crit: r.crit, high: r.high })));
@@ -419,7 +423,7 @@ tr:last-child td { border-bottom:none; }
 .axis line, .axis path { stroke:#eee; }
 .grid line { stroke:#f5f5f5; }
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 40px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
-@media print { .pdf-btn{display:none;} .cover,.exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} }
+@media print { .pdf-btn{display:none;} .cover,.exec-dark{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .card{break-inside:avoid;} .page{padding:0;} .cover{page-break-after:always;} }
 </style>
 </head><body>
 <div class="page">
@@ -517,30 +521,37 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sorted=Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
   const topSev=sorted[0]?.[1]?.severity||'Medium';
   const sc=topSev==='Critical'?'C':topSev==='High'?'H':'M';
+  const borderC=topSev==='Critical'?'#fca5a5':topSev==='High'?'#fdba74':'#fde68a';
+  const headerBg=topSev==='Critical'?'#fff5f5':topSev==='High'?'#fff7ed':'#fffbeb';
   const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
   const tl=actorTimeline[actor]||{};
-  return `<div class="card" style="margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-      <div><div style="font-family:monospace;font-size:13px;font-weight:700">${actor}</div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs</div></div>
-      <span class="sev ${sc}" style="font-size:11px;padding:3px 10px">${topSev}</span>
+  const totalV=sorted.reduce((n,[,d])=>n+d.maxViolations,0);
+  return `<div style="background:#fff;border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
+    <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-family:monospace;font-size:13px;font-weight:700;color:#0d1e3c;word-break:break-all">${actor}</div>
+        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs · ${totalV.toLocaleString()} total violations</div>
+      </div>
+      <span class="sev ${sc}" style="font-size:11px;padding:4px 12px;flex-shrink:0;margin-left:12px">${topSev}</span>
     </div>
-    <table style="margin:0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
+    <div style="padding:0 18px 14px">
+    <table style="margin:0;margin-top:10px"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
     <tbody>${sorted.map(([p,d])=>{
       const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
-      return `<tr><td>${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace">${d.maxViolations.toLocaleString()}</td></tr>`;
+      return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
     }).join('')}</tbody></table>
+    </div>
   </div>`;
 }).join('')}
 
-<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">30-Day Risk Trend</div></div>
-<p class="sec-desc">Critical and high findings over the engagement period. Downward movement indicates remediation; flat or upward movement indicates unresolved risk.</p>
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">${engagementDays}-Day Risk Trend</div></div>
+<p class="sec-desc">Critical and high findings over the ${engagementDays}-day engagement. Downward movement indicates remediation; flat or upward movement indicates unresolved risk.</p>
 <div class="card">
   <div style="margin-bottom:10px;display:flex;gap:16px;align-items:center">
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e05252;border-radius:2px"></span>Critical</span>
     <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e07d22;border-radius:2px;border-bottom:1px dashed #e07d22"></span>High</span>
   </div>
-  <svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>
+  ${runs.length >= 2 ? `<svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>` : `<div style="height:60px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;font-family:monospace">Trend chart available after 2+ monitoring runs</div>`}
   <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:14px">
   <table>
     <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
