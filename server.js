@@ -360,23 +360,23 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .page { max-width:1140px; margin:0 auto; padding:0 0 60px; background:transparent; }
 
 /* ── Cover ─────────────────────────────────────────────────────────────── */
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; }
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:44px 52px 44px; color:#fff; position:relative; overflow:hidden; }
 .cover::after { content:''; position:absolute; right:-80px; top:-80px; width:560px; height:560px; background:radial-gradient(circle,rgba(21,80,255,.35) 0%,transparent 70%); pointer-events:none; }
-.cover::before { content:''; position:absolute; left:-60px; bottom:-60px; width:360px; height:360px; background:radial-gradient(circle,rgba(21,80,255,.18) 0%,transparent 70%); pointer-events:none; }
-.cover-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0; }
+.cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:320px; height:320px; background:radial-gradient(circle,rgba(21,80,255,.18) 0%,transparent 70%); pointer-events:none; }
+.cover-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:36px; }
 .cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.35); }
-.cover-mid { flex:1; display:flex; align-items:flex-end; gap:48px; padding:0 0 56px; }
+.cover-mid { display:flex; align-items:flex-start; gap:40px; margin-bottom:36px; }
 .cover-title-block { flex:1; }
-.cover-title { font-size:52px; font-weight:800; line-height:1.08; margin-bottom:14px; }
-.cover-sub { font-size:14px; opacity:.45; font-family:monospace; }
-.cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px 32px; border-left:1px solid rgba(255,255,255,.12); padding-left:48px; min-width:280px; align-self:flex-end; }
+.cover-title { font-size:44px; font-weight:800; line-height:1.1; margin-bottom:10px; }
+.cover-sub { font-size:13px; opacity:.4; font-family:monospace; }
+.cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; border-left:1px solid rgba(255,255,255,.15); padding-left:36px; min-width:240px; }
 .cover-meta-item { }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.35); margin-bottom:3px; }
 .cover-meta-val { font-size:13px; font-weight:700; color:#fff; }
-.cover-risk { display:flex; gap:12px; padding-top:28px; border-top:1px solid rgba(255,255,255,.12); }
-.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:18px 16px; flex:1; text-align:center; }
-.cover-risk-val { font-size:32px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:6px; }
-.cover-risk-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.5); }
+.cover-risk { display:flex; gap:10px; padding-top:20px; border-top:1px solid rgba(255,255,255,.12); }
+.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:14px 12px; flex:1; text-align:center; }
+.cover-risk-val { font-size:26px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
+.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.45); }
 
 /* ── Body ──────────────────────────────────────────────────────────────── */
 .body { padding:0 44px; background:transparent; }
@@ -454,7 +454,7 @@ tr:hover td { background:rgba(255,255,255,.03); }
 /* ── PDF ───────────────────────────────────────────────────────────────── */
 .pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.22); }
-@media print { * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; } .pdf-btn{display:none;} body{background:#060e1e!important;} .cover{page-break-after:always;} .card{break-inside:avoid;} .page{padding:0;} }
+@media print { * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; } .pdf-btn{display:none;} body{background:#060e1e!important;} .card{break-inside:avoid;} .page{padding:0;} }
 </style>
 </head><body>
 <div class="page">
