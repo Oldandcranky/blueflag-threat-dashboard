@@ -365,18 +365,18 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cover::before { content:''; position:absolute; left:-60px; bottom:-60px; width:360px; height:360px; background:radial-gradient(circle,rgba(21,80,255,.18) 0%,transparent 70%); pointer-events:none; }
 .cover-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0; }
 .cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.35); }
-.cover-mid { flex:1; display:flex; align-items:center; gap:48px; padding:64px 0 48px; }
+.cover-mid { flex:1; display:flex; align-items:flex-end; gap:48px; padding:0 0 56px; }
 .cover-title-block { flex:1; }
-.cover-title { font-size:44px; font-weight:800; line-height:1.1; margin-bottom:12px; }
+.cover-title { font-size:52px; font-weight:800; line-height:1.08; margin-bottom:14px; }
 .cover-sub { font-size:14px; opacity:.45; font-family:monospace; }
-.cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 28px; border-left:1px solid rgba(255,255,255,.12); padding-left:48px; min-width:260px; }
+.cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px 32px; border-left:1px solid rgba(255,255,255,.12); padding-left:48px; min-width:280px; align-self:flex-end; }
 .cover-meta-item { }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.35); margin-bottom:3px; }
 .cover-meta-val { font-size:13px; font-weight:700; color:#fff; }
-.cover-risk { display:flex; gap:14px; margin-top:auto; padding-top:32px; border-top:1px solid rgba(255,255,255,.1); }
-.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:16px 20px; flex:1; text-align:center; }
-.cover-risk-val { font-size:30px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
-.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45); }
+.cover-risk { display:flex; gap:12px; padding-top:28px; border-top:1px solid rgba(255,255,255,.12); }
+.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:18px 16px; flex:1; text-align:center; }
+.cover-risk-val { font-size:32px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:6px; }
+.cover-risk-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.5); }
 
 /* ── Body ──────────────────────────────────────────────────────────────── */
 .body { padding:0 44px; background:transparent; }
@@ -556,16 +556,16 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sorted=Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
   const topSev=sorted[0]?.[1]?.severity||'Medium';
   const sc=topSev==='Critical'?'C':topSev==='High'?'H':'M';
-  const borderC=topSev==='Critical'?'#fca5a5':topSev==='High'?'#fdba74':'#fde68a';
-  const headerBg=topSev==='Critical'?'#fff5f5':topSev==='High'?'#fff7ed':'#fffbeb';
-  const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
+  const borderC=topSev==='Critical'?'rgba(220,38,38,.35)':topSev==='High'?'rgba(194,65,12,.35)':'rgba(161,98,7,.35)';
+  const headerBg=topSev==='Critical'?'rgba(220,38,38,.1)':topSev==='High'?'rgba(194,65,12,.1)':'rgba(161,98,7,.08)';
+  const sevC=topSev==='Critical'?'#ff6b6b':topSev==='High'?'#ffa94d':'#fde68a';
   const tl=actorTimeline[actor]||{};
   const totalV=sorted.reduce((n,[,d])=>n+d.maxViolations,0);
-  return `<div style="background:#fff;border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
+  return `<div style="background:rgba(255,255,255,.04);border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
     <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
       <div>
-        <div style="font-family:monospace;font-size:13px;font-weight:700;color:#0d1e3c;word-break:break-all">${actor}</div>
-        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs · ${totalV.toLocaleString()} total violations</div>
+        <div style="font-family:monospace;font-size:13px;font-weight:700;color:#fff;word-break:break-all">${actor}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} runs · ${totalV.toLocaleString()} total violations</div>
       </div>
       <span class="sev ${sc}" style="font-size:11px;padding:4px 12px;flex-shrink:0;margin-left:12px">${topSev}</span>
     </div>
@@ -573,7 +573,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
     <table style="margin:0;margin-top:10px"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
     <tbody>${sorted.map(([p,d])=>{
       const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
-      return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
+      return `<tr><td style="font-weight:500;color:rgba(255,255,255,.85)">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700;color:rgba(255,255,255,.85)">${d.maxViolations.toLocaleString()}</td></tr>`;
     }).join('')}</tbody></table>
     </div>
   </div>`;
