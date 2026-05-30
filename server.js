@@ -358,15 +358,18 @@ app.get('/api/arc/:id', (req, res) => {
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f8; color:#1a1a2e; }
 .page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
-.cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
-.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:32px; }
-.cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
-.cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
-.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; flex-wrap:wrap; }
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; justify-content:space-between; border-radius:0; }
+.cover::after { content:''; position:absolute; right:-80px; top:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(21,80,255,.3) 0%,transparent 70%); pointer-events:none; }
+.cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:300px; height:300px; background:radial-gradient(circle,rgba(21,80,255,.15) 0%,transparent 70%); pointer-events:none; }
+.cover-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); }
+.cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; padding:60px 0 40px; }
+.cover-title { font-size:42px; font-weight:800; line-height:1.12; margin-bottom:10px; }
+.cover-sub { font-size:15px; opacity:.5; font-family:monospace; }
+.cover-bottom { }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:22px; margin-bottom:24px; flex-wrap:wrap; }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
 .cover-meta-val { font-size:14px; font-weight:700; }
-.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; }
 .pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.25); }
 .body { padding:0 40px; }
@@ -411,10 +414,10 @@ tr:last-child td { border-bottom:none; }
 .rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:3px; }
 .rec-desc { font-size:12px; color:#666; line-height:1.55; }
 .rec-meta { font-size:10px; color:#aaa; margin-top:4px; font-family:monospace; }
-.cover-risk { display:flex; gap:20px; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.08); }
-.cover-risk-item { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:10px 16px; }
-.cover-risk-val { font-size:22px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:2px; }
-.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.45; }
+.cover-risk { display:flex; gap:16px; }
+.cover-risk-item { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); border-radius:10px; padding:14px 20px; flex:1; text-align:center; }
+.cover-risk-val { font-size:28px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
+.cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.5; }
 .chart-area-crit { fill:rgba(224,82,82,.1); }
 .chart-area-high { fill:rgba(224,125,34,.07); }
 .chart-line-crit { fill:none; stroke:#e05252; stroke-width:2.5; }
@@ -433,21 +436,25 @@ tr:last-child td { border-bottom:none; }
     <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
   </div>
-  <div class="cover-title">${tenant.name}<br>Developer Identity Risk Assessment</div>
-  <div class="cover-sub">${tenant.url}</div>
-  <div class="cover-meta">
-    <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
-    <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
-    <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
-    <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
-    <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+  <div class="cover-main">
+    <div class="cover-title">${tenant.name}<br>Developer Identity Risk Assessment</div>
+    <div class="cover-sub">${tenant.url}</div>
   </div>
-  <div class="cover-risk">
-    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#e05252">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#e07d22">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#27ae60">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Unique Policies Triggered</div></div>
+  <div class="cover-bottom">
+    <div class="cover-meta">
+      <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
+      <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
+      <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">${runs.length} Daily Scans</div></div>
+      <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+    </div>
+    <div class="cover-risk">
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Policies Triggered</div></div>
+    </div>
   </div>
 </div>
 
@@ -714,13 +721,16 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
 
 /* Cover */
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 50%,#1550FF 100%); padding:52px 52px 44px; color:#fff; position:relative; overflow:hidden; }
-.cover::after { content:''; position:absolute; right:-60px; top:-60px; width:400px; height:400px; background:radial-gradient(circle,rgba(21,80,255,.25) 0%,transparent 70%); pointer-events:none; }
-.cover-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; }
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:52px 52px 48px; color:#fff; position:relative; overflow:hidden; min-height:100vh; display:flex; flex-direction:column; justify-content:space-between; border-radius:0; }
+.cover::after { content:''; position:absolute; right:-80px; top:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(21,80,255,.3) 0%,transparent 70%); pointer-events:none; }
+.cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:300px; height:300px; background:radial-gradient(circle,rgba(21,80,255,.15) 0%,transparent 70%); pointer-events:none; }
+.cover-top { display:flex; justify-content:space-between; align-items:flex-start; }
 .cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.4); }
-.cover-title { font-size:36px; font-weight:800; line-height:1.15; margin-bottom:8px; }
-.cover-sub { font-size:15px; opacity:.55; margin-bottom:36px; font-family:monospace; }
-.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:20px; flex-wrap:wrap; }
+.cover-main { flex:1; display:flex; flex-direction:column; justify-content:center; padding:60px 0 40px; }
+.cover-title { font-size:42px; font-weight:800; line-height:1.12; margin-bottom:10px; }
+.cover-sub { font-size:15px; opacity:.5; font-family:monospace; }
+.cover-bottom { }
+.cover-meta { display:flex; gap:32px; border-top:1px solid rgba(255,255,255,.12); padding-top:22px; margin-bottom:24px; flex-wrap:wrap; }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; opacity:.4; margin-bottom:3px; }
 .cover-meta-val { font-size:14px; font-weight:700; }
 .demo-ribbon { background:#ffc107; color:#1a1a2e; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:4px 14px; border-radius:3px; display:inline-block; margin-bottom:20px; }
@@ -834,22 +844,32 @@ tr:last-child td { border-bottom:none; }
 
 <!-- ── COVER ──────────────────────────────────────────────────────────── -->
 <div class="cover">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
-    <div class="cover-top">
+  <div class="cover-top">
     <div>
       <div class="demo-ribbon" style="margin-bottom:12px">Demo Report</div>
       <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     </div>
     <a href="/demo-arc/pdf" class="pdf-btn">↓ Download PDF</a>
   </div>
-  <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
-  <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
-  <div class="cover-meta">
-    <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">Acme Corp</div></div>
-    <div class="cover-meta-item"><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">Apr 30 – May 29, 2026</div></div>
-    <div class="cover-meta-item"><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">30 Daily Scans</div></div>
-    <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
-    <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+  <div class="cover-main">
+    <div class="cover-title">Developer Identity &amp;<br>Agentic AI Risk Assessment</div>
+    <div class="cover-sub">Acme Corp · 30-Day Continuous Monitoring Engagement</div>
+  </div>
+  <div class="cover-bottom">
+    <div class="cover-meta">
+      <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">Acme Corp</div></div>
+      <div><div class="cover-meta-label">Monitoring Period</div><div class="cover-meta-val">Apr 30 – May 29, 2026</div></div>
+      <div><div class="cover-meta-label">Total Runs</div><div class="cover-meta-val">30 Daily Scans</div></div>
+      <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+    </div>
+    <div class="cover-risk">
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">401</div><div class="cover-risk-label">Critical Findings</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">847</div><div class="cover-risk-label">High Findings</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val">12</div><div class="cover-risk-label">Identities Flagged</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">2</div><div class="cover-risk-label">Resolved</div></div>
+      <div class="cover-risk-item"><div class="cover-risk-val">12</div><div class="cover-risk-label">Policies Triggered</div></div>
+    </div>
   </div>
 </div>
 
