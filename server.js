@@ -339,12 +339,14 @@ app.get('/api/arc/:id', (req, res) => {
 
   const topViolBar = topPolicies.slice(0,6).map(p => {
     const maxV = topPolicies[0]?.totalViolations || 1;
-    const pct = Math.round(p.totalViolations / maxV * 100);
+    // sqrt scale prevents dominant values from crushing smaller ones visually
+    // max bar capped at 92% to guarantee no overflow
+    const pct = Math.min(92, Math.round(Math.sqrt(p.totalViolations / maxV) * 92));
     const c = p.severity==='Critical'?'#e05252':p.severity==='High'?'#e07d22':'#f0b429';
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <div style="font-size:11px;color:#555;width:260px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-      <div style="flex:1;background:#f0f2f8;border-radius:3px;height:8px"><div style="width:${pct}%;height:8px;border-radius:3px;background:${c}"></div></div>
-      <div style="font-family:monospace;font-size:11px;font-weight:700;width:60px;text-align:right;color:${c}">${p.totalViolations.toLocaleString()}</div>
+      <div style="font-size:11px;color:#555;width:240px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+      <div style="flex:1;background:#f0f2f8;border-radius:3px;height:8px;overflow:hidden"><div style="width:${pct}%;max-width:100%;height:8px;border-radius:3px;background:${c}"></div></div>
+      <div style="font-family:monospace;font-size:11px;font-weight:700;width:60px;text-align:right;flex-shrink:0;color:${c}">${p.totalViolations.toLocaleString()}</div>
     </div>`;
   }).join('');
 
@@ -484,8 +486,6 @@ tr:hover td { background:#fafbff; }
     </div>
     <div class="cover-meta-grid">
       <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Engagement Period</div><div class="cover-meta-val">${firstRun.date} – ${lastRun.date}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Assessments</div><div class="cover-meta-val">${runs.length}</div></div>
       <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
       <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
     </div>
@@ -494,8 +494,6 @@ tr:hover td { background:#fafbff; }
     <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ff6b6b">${lastRun.crit.toLocaleString()}</div><div class="cover-risk-label">Critical Findings</div></div>
     <div class="cover-risk-item"><div class="cover-risk-val" style="color:#ffa94d">${totalHigh.toLocaleString()}</div><div class="cover-risk-label">High Findings</div></div>
     <div class="cover-risk-item"><div class="cover-risk-val">${totalActors}</div><div class="cover-risk-label">Identities Flagged</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val" style="color:#69db7c">${resolvedCount}</div><div class="cover-risk-label">Resolved</div></div>
-    <div class="cover-risk-item"><div class="cover-risk-val">${topPolicies.length}</div><div class="cover-risk-label">Policies Triggered</div></div>
   </div>
 </div>
 
@@ -503,11 +501,9 @@ tr:hover td { background:#fafbff; }
 
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
 <p class="sec-desc">A high-level snapshot of the critical findings BlueFlag Security identified in ${tenant.name}'s environment over a ${engagementDays}-day engagement — key metrics, severity breakdown, and critical actions required.</p>
-<div class="kpi-strip">
-  <div class="kpi-tile accent"><div class="kpi-val">${engagementDays}</div><div class="kpi-label">Days Monitored</div></div>
-  <div class="kpi-tile"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical (Latest)</div></div>
+<div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
+  <div class="kpi-tile accent"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical Findings</div></div>
   <div class="kpi-tile"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Identities Flagged</div></div>
-  <div class="kpi-tile"><div class="kpi-val ${resolved.length?'green':''}">${resolved.length}</div><div class="kpi-label">Resolved</div></div>
 </div>
 <div class="exec-dark">
   <div class="exec-dark-title">Executive Summary</div>
@@ -592,26 +588,8 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   </div>`;
 }).join('')}
 
-<div class="trend-section">
-<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">${engagementDays}-Day Risk Trend</div></div>
-<p class="sec-desc">Critical and high findings over the ${engagementDays}-day engagement. Downward movement indicates remediation; flat or upward movement indicates unresolved risk.</p>
-<div class="card">
-  <div style="margin-bottom:10px;display:flex;gap:16px;align-items:center">
-    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e05252;border-radius:2px"></span>Critical</span>
-    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#666"><span style="display:inline-block;width:14px;height:3px;background:#e07d22;border-radius:2px;border-bottom:1px dashed #e07d22"></span>High</span>
-  </div>
-  ${runs.length >= 2 ? `<svg id="trendChart" height="180" style="overflow:visible;display:block"></svg>` : `<div style="height:60px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;font-family:monospace">Trend chart available after 2+ assessments</div>`}
-  <div style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:14px">
-  <table>
-    <thead><tr><th>Date</th><th>Critical</th><th>Δ</th><th>High</th><th>Actors</th><th>Top Actors</th></tr></thead>
-    <tbody>${rowsHTML}</tbody>
-  </table>
-  </div>
-</div>
-</div>
-
 ${recos ? `
-<div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Recommendations</div></div>
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Recommendations</div></div>
 <p class="sec-desc">Prioritized remediation actions based on findings BlueFlag Security identified during this engagement. Each recommendation targets a specific policy violation found.</p>
 <div class="card">
   ${recos}
