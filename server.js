@@ -500,14 +500,14 @@ tr:hover td { background:#fafbff; }
 <div class="body">
 
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
-<p class="sec-desc">A high-level snapshot of the critical findings BlueFlag Security identified in ${tenant.name}'s environment over a ${engagementDays}-day engagement — key metrics, severity breakdown, and critical actions required.</p>
+<p class="sec-desc">A high-level snapshot of the critical findings BlueFlag Security identified in ${tenant.name}'s environment throughout this engagement — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
   <div class="kpi-tile accent"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical Findings</div></div>
   <div class="kpi-tile"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Identities Flagged</div></div>
 </div>
 <div class="exec-dark">
   <div class="exec-dark-title">Executive Summary</div>
-  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Over a <strong style="color:#fff">${engagementDays}-day engagement</strong>, BlueFlag Security found critical findings across <strong style="color:#fff">${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
+  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Throughout this engagement, BlueFlag Security found critical findings across <strong style="color:#fff">${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
   ${topThreat ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">The highest-priority finding has been <strong style="color:#fff">${topThreat.name}</strong> (${topThreat.severity}), found in <strong style="color:#fff">${topThreat.runs} of ${runs.length} assessments</strong> with <strong style="color:#fff">${topThreat.totalViolations.toLocaleString()} total violations</strong> affecting ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
   ${chronicCount > 0 ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8)"><strong style="color:#fff">${chronicCount} ${chronicCount===1?'identity has':'identities have'} been flagged in every assessment</strong> — indicating structural risks embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong style="color:#fff">${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement.` : 'No identities have been remediated during this engagement.'}</p>` : ''}
 </div>
