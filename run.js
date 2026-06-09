@@ -836,20 +836,17 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
             }
 
             // Find the row for this identity and click its entity graph button.
-            // The button is inside the row that contains the login name.
+            // Each identity row has exactly one button (the graph/network icon) — no title or aria-label.
             const clicked = await page.evaluate((loginName) => {
-              // Look for a row/cell containing the login text, then find a graph/network button nearby
-              const allText = document.querySelectorAll('td, [class*="row"] [class*="cell"], [class*="tableRow"] span, [class*="identity"] span, [class*="name"]');
-              for (const el of allText) {
-                if (el.textContent.trim().toLowerCase() === loginName.toLowerCase()) {
-                  // Walk up to find the row, then find a button that looks like a graph icon
-                  let row = el;
-                  for (let i = 0; i < 6; i++) {
-                    row = row.parentElement;
-                    if (!row) break;
-                    const btn = row.querySelector('button[title*="graph" i], button[title*="network" i], button[aria-label*="graph" i], button[aria-label*="entity" i], button[title*="blast" i]');
-                    if (btn) { btn.click(); return true; }
-                  }
+              for (const row of document.querySelectorAll('tr')) {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 2) continue;
+                // First cell contains the identity name/login — skip empty cells
+                const cellText = cells[0].textContent.trim().toLowerCase();
+                if (!cellText) continue;
+                if (cellText === loginName.toLowerCase() || cellText.startsWith(loginName.toLowerCase())) {
+                  const btn = row.querySelector('button');
+                  if (btn) { btn.click(); return true; }
                 }
               }
               return false;
@@ -858,20 +855,22 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
             if (clicked) {
               // Wait for the entity-graph page SVG to render
               await page.waitForURL(/entity-graph/, { timeout: 15000 }).catch(() => {});
-              await page.waitForSelector('svg circle, svg [class*="node"]', { timeout: 20000 }).catch(() => {});
-              await page.waitForTimeout(2000);
+              // Graph is rendered on a canvas inside .vis-network — wait for that
+              await page.waitForSelector('.vis-network canvas', { timeout: 20000 }).catch(() => {});
+              await page.waitForTimeout(2500);
 
-              // Screenshot the graph container
-              const graphEl = await page.$('svg[class*="graph"], [class*="graph-container"] svg, [class*="entityGraph"] svg, main svg, .content svg, svg').catch(() => null);
+              // Screenshot the vis-network canvas container (BlueFlag uses vis.js network graph)
+              const graphEl = await page.$('.vis-network, .vis-network canvas').catch(() => null);
               if (graphEl) {
                 const buf = await graphEl.screenshot({ type: 'png' });
                 stats.entityGraphScreenshot = 'data:image/png;base64,' + buf.toString('base64');
                 console.log(`  → [${elapsed()}] [identities] Entity graph screenshot captured for ${login} (${buf.length} bytes)`);
               } else {
-                // Fallback: screenshot the whole viewport
-                const buf = await page.screenshot({ type: 'png', fullPage: false });
+                // Fallback: screenshot the main content area
+                const mainEl = await page.$('main').catch(() => null);
+                const buf = await (mainEl || page).screenshot({ type: 'png', fullPage: false });
                 stats.entityGraphScreenshot = 'data:image/png;base64,' + buf.toString('base64');
-                console.log(`  → [${elapsed()}] [identities] Entity graph viewport screenshot for ${login}`);
+                console.log(`  → [${elapsed()}] [identities] Entity graph fallback screenshot for ${login}`);
               }
 
               // Navigate back to identities so subsequent API calls still work
