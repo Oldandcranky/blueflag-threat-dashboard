@@ -835,22 +835,30 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
               await page.waitForTimeout(2000);
             }
 
-            // Find the row for this identity and click its entity graph button.
-            // Each identity row has exactly one button (the graph/network icon) — no title or aria-label.
-            const clicked = await page.evaluate((loginName) => {
-              for (const row of document.querySelectorAll('tr')) {
-                const cells = row.querySelectorAll('td');
-                if (cells.length < 2) continue;
-                // First cell contains the identity name/login — skip empty cells
-                const cellText = cells[0].textContent.trim().toLowerCase();
-                if (!cellText) continue;
-                if (cellText === loginName.toLowerCase() || cellText.startsWith(loginName.toLowerCase())) {
-                  const btn = row.querySelector('button');
-                  if (btn) { btn.click(); return true; }
-                }
+            // Scan through paginated identity table (up to 22 pages, 10 rows each, no search/sort).
+            // cells[0] = checkbox, cells[1] = Account Name (login). Each row has exactly one button.
+            let clicked = false;
+            for (let pg = 0; pg < 22 && !clicked; pg++) {
+              if (pg > 0) {
+                const nextBtn = await page.$('button[aria-label="Go to next page"]:not([disabled])');
+                if (!nextBtn) break;
+                await nextBtn.click();
+                await page.waitForTimeout(800);
               }
-              return false;
-            }, login);
+              clicked = await page.evaluate((loginName) => {
+                for (const row of document.querySelectorAll('tr')) {
+                  const cells = row.querySelectorAll('td');
+                  if (cells.length < 2) continue;
+                  const cellText = cells[1]?.textContent?.trim()?.toLowerCase() || '';
+                  if (!cellText) continue;
+                  if (cellText === loginName.toLowerCase() || cellText.startsWith(loginName.toLowerCase())) {
+                    const btn = row.querySelector('button');
+                    if (btn) { btn.click(); return true; }
+                  }
+                }
+                return false;
+              }, login);
+            }
 
             if (clicked) {
               // Wait for the entity-graph page SVG to render
