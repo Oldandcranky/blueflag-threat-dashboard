@@ -824,22 +824,69 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
           console.log(`  → [${elapsed()}] [identities] Access: ${access['Number of admin permissions '].join(' / ')}`);
         }
 
-        // Entity graph — blast-radius visualisation for Critical/High identities
+        // Entity graph — Playwright screenshot of BlueFlag's graph UI for Critical/High identities
         if (['Critical','High'].includes(stats.riskRating)) {
           try {
-            const graphRaw = await apiGet(`/api/analytics/entity-graph/access?display_repos=true&user=${encodeURIComponent(login)}`);
-            // API may return { nodes, links } or { nodes, edges } or { data: { nodes, links } }
-            const gd = graphRaw?.data || graphRaw;
-            const nodes = gd?.nodes || [];
-            const links = gd?.links || gd?.edges || gd?.relationships || [];
-            if (nodes.length) {
-              stats.entityGraph = { nodes, links };
-              console.log(`  → [${elapsed()}] [identities] Entity graph: ${nodes.length} nodes, ${links.length} links for ${login}`);
+            const identitiesUrl = tenant.url.replace(/\/$/, '') + '/identities';
+            // Ensure we're on the identities page before looking for the graph button
+            const currentUrl = page.url();
+            if (!currentUrl.includes('/identities') || currentUrl.includes('/entity-graph')) {
+              await page.goto(identitiesUrl, { waitUntil: 'networkidle', timeout: 30000 });
+              await page.waitForTimeout(2000);
+            }
+
+            // Find the row for this identity and click its entity graph button.
+            // The button is inside the row that contains the login name.
+            const clicked = await page.evaluate((loginName) => {
+              // Look for a row/cell containing the login text, then find a graph/network button nearby
+              const allText = document.querySelectorAll('td, [class*="row"] [class*="cell"], [class*="tableRow"] span, [class*="identity"] span, [class*="name"]');
+              for (const el of allText) {
+                if (el.textContent.trim().toLowerCase() === loginName.toLowerCase()) {
+                  // Walk up to find the row, then find a button that looks like a graph icon
+                  let row = el;
+                  for (let i = 0; i < 6; i++) {
+                    row = row.parentElement;
+                    if (!row) break;
+                    const btn = row.querySelector('button[title*="graph" i], button[title*="network" i], button[aria-label*="graph" i], button[aria-label*="entity" i], button[title*="blast" i]');
+                    if (btn) { btn.click(); return true; }
+                  }
+                }
+              }
+              return false;
+            }, login);
+
+            if (clicked) {
+              // Wait for the entity-graph page SVG to render
+              await page.waitForURL(/entity-graph/, { timeout: 15000 }).catch(() => {});
+              await page.waitForSelector('svg circle, svg [class*="node"]', { timeout: 20000 }).catch(() => {});
+              await page.waitForTimeout(2000);
+
+              // Screenshot the graph container
+              const graphEl = await page.$('svg[class*="graph"], [class*="graph-container"] svg, [class*="entityGraph"] svg, main svg, .content svg, svg').catch(() => null);
+              if (graphEl) {
+                const buf = await graphEl.screenshot({ type: 'png' });
+                stats.entityGraphScreenshot = 'data:image/png;base64,' + buf.toString('base64');
+                console.log(`  → [${elapsed()}] [identities] Entity graph screenshot captured for ${login} (${buf.length} bytes)`);
+              } else {
+                // Fallback: screenshot the whole viewport
+                const buf = await page.screenshot({ type: 'png', fullPage: false });
+                stats.entityGraphScreenshot = 'data:image/png;base64,' + buf.toString('base64');
+                console.log(`  → [${elapsed()}] [identities] Entity graph viewport screenshot for ${login}`);
+              }
+
+              // Navigate back to identities so subsequent API calls still work
+              await page.goto(identitiesUrl, { waitUntil: 'networkidle', timeout: 30000 });
+              await page.waitForTimeout(2000);
             } else {
-              console.log(`  → [${elapsed()}] [identities] Entity graph returned no nodes for ${login} (keys: ${Object.keys(graphRaw||{}).join(',')})`);
+              console.log(`  → [${elapsed()}] [identities] Entity graph button not found for ${login} — skipping screenshot`);
             }
           } catch(e) {
-            console.log(`  → [${elapsed()}] [identities] Entity graph warning for ${login}: ${e.message.split('\n')[0]}`);
+            console.log(`  → [${elapsed()}] [identities] Entity graph screenshot warning for ${login}: ${e.message.split('\n')[0]}`);
+            // Attempt to recover by returning to identities page
+            try {
+              await page.goto(tenant.url.replace(/\/$/, '') + '/identities', { waitUntil: 'networkidle', timeout: 30000 });
+              await page.waitForTimeout(2000);
+            } catch { /* ignore recovery errors */ }
           }
         }
 

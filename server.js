@@ -577,7 +577,6 @@ ${reco?`<div class="remed-box">
         <div class="card">
           <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
           ${chronics.length?`<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>`:'<div style="color:#aaa;font-size:12px">None — no chronic identities found</div>'}
-          ${resolved.length?`<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>`:''}
         </div>
         <div class="card">
           <div class="card-title">Top Violations by Volume</div>
@@ -599,20 +598,17 @@ ${reco?`<div class="remed-box">
   ].filter(Boolean);
 
   // Number sequentially: sections start at 2 (Executive Summary is 1)
+  // Each section is wrapped in an inline page-break div — more reliable than @media print CSS in Playwright
   let dynNum = 2;
-  const sectionsBodyHTML = rawSections.map(h => h.replace('__NUM__', dynNum++)).join('');
+  const sectionsBodyHTML = rawSections.map(h => {
+    const numbered = h.replace('__NUM__', dynNum++);
+    return `<div style="page-break-before:always;break-before:page">${numbered}</div>`;
+  }).join('');
   const identitySecNum = dynNum++;
-  const recoSecNum = dynNum;
+  const recoSecNum = dynNum++;
+  const accessMapSecNum = dynNum;
 
-  // Collect entity graph data for all identities that have it (for inline D3 rendering)
-  const entityGraphs = Object.entries(latestSnap?.identities || {})
-    .filter(([,id]) => id?.entityGraph?.nodes?.length)
-    .map(([actor, id]) => ({
-      svgId: 'eg_' + actor.replace(/[^a-zA-Z0-9]/g,'_'),
-      actor,
-      nodes: id.entityGraph.nodes,
-      links: id.entityGraph.links || [],
-    }));
+
 
   const html = `<!DOCTYPE html>
 <html><head>
@@ -758,10 +754,7 @@ tr:hover td { background:#fafbff; }
   .pdf-btn { display:none; }
   .page { padding:0; }
   @page { margin:36px 0 20px; }
-  .cover { break-after:page; page-break-after:always; }
-  .sec-header { break-before:page; page-break-before:always; break-after:avoid; page-break-after:avoid; }
-  .sec-header.no-break { break-before:avoid; page-break-before:avoid; }
-  .sec-sub, .sec-desc, .obj-banner { break-after:avoid; page-break-after:avoid; }
+  .sec-header, .sec-sub, .sec-desc, .obj-banner { break-after:avoid; page-break-after:avoid; }
   .card, .key-finding, .implication-box, .remed-box, .vt-card { break-inside:avoid; page-break-inside:avoid; }
 }
 </style>
@@ -769,7 +762,7 @@ tr:hover td { background:#fafbff; }
 <div class="page">
 
 <!-- ── Cover ── -->
-<div class="cover">
+<div class="cover" style="page-break-after:always;break-after:page">
   <div class="cover-top">
     <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
@@ -792,7 +785,8 @@ tr:hover td { background:#fafbff; }
 <div class="body">
 
 <!-- ── Section 1: Executive Summary ── -->
-<div class="sec-header no-break"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
+<div style="page-break-before:always;break-before:page">
+<div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
 <p class="sec-desc">High-level findings BlueFlag Security identified in ${tenant.name}'s environment — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
   <div class="kpi-tile accent"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical Findings</div></div>
@@ -802,16 +796,17 @@ tr:hover td { background:#fafbff; }
   <div class="exec-dark-title">Executive Summary</div>
   <p>Throughout this engagement, BlueFlag Security found critical findings across <strong>${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
   ${topThreat ? `<p>The highest-priority finding has been <strong>${topThreat.name}</strong> (${topThreat.severity}), present in <strong>${topThreat.runs} of ${runs.length} assessments</strong> with <strong>${topThreat.totalViolations.toLocaleString()} total violations</strong> across ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
-  ${chronicCount > 0 ? `<p><strong>${chronicCount} ${chronicCount===1?'identity has':'identities have'} appeared in every assessment</strong> — indicating structural risk embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement.` : 'No identities have been fully remediated during this engagement period.'}</p>` : ''}
+  ${chronicCount > 0 ? `<p><strong>${chronicCount} ${chronicCount===1?'identity has':'identities have'} appeared in every assessment</strong> — indicating structural risk embedded in the development workflow, not one-off events. Immediate remediation is required.</p>` : ''}
 </div>
 ${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} assessments, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
-${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
+</div>
 
 <!-- ── Sections 2+: Dynamic risk sections (Human Dev Risk, Code, IaC, AI Agents — only non-empty rendered) ── -->
 ${sectionsBodyHTML}
 
 <!-- ── Identity Detail ── -->
 ${Object.keys(actorPolicyMap).length ? `
+<div style="page-break-before:always;break-before:page">
 <div class="sec-header"><div class="sec-num">${identitySecNum}</div><div class="sec-name">Identity Detail</div></div>
 <p class="sec-desc">Per-identity breakdown of every violation BlueFlag Security found — showing severity, maximum violation count in a single assessment, and engagement timeline.</p>
 ${Object.entries(actorPolicyMap).sort((a,b)=>{
@@ -828,22 +823,6 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const tl=actorTimeline[actor]||{};
   const totalV=sorted.reduce((n,[,d])=>n+d.maxViolations,0);
   const identSnap = latestSnap?.identities?.[actor];
-  const graphData = identSnap?.entityGraph;
-  const safeId = actor.replace(/[^a-zA-Z0-9]/g,'_');
-  const graphHTML = graphData?.nodes?.length ? `
-    <div style="margin:10px 0 0;background:#f8f9fc;border-radius:8px;overflow:hidden;border:1px solid ${borderC}">
-      <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888">Access Blast Radius — Repository Graph</div>
-        <div style="font-size:9px;color:#aaa">${graphData.nodes.length} nodes · ${graphData.links?.length||0} connections</div>
-      </div>
-      <svg id="eg_${safeId}" width="100%" height="360" style="display:block"></svg>
-      <div style="padding:6px 14px 8px;display:flex;gap:14px">
-        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1550FF"></span>Identity</span>
-        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e05252"></span>Admin</span>
-        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c3aed"></span>Write/Maintain</span>
-        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7db3"></span>Read/Triage</span>
-      </div>
-    </div>` : '';
   return `<div style="background:#fff;border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
     <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
       <div>
@@ -858,16 +837,46 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
         const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
         return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
       }).join('')}</tbody></table>
-      ${graphHTML}
     </div>
   </div>`;
-}).join('')}` : ''}
+}).join('')}
+</div>` : ''}
 
 <!-- ── Recommendations ── -->
 ${recos ? `
+<div style="page-break-before:always;break-before:page">
 <div class="sec-header"><div class="sec-num">${recoSecNum}</div><div class="sec-name">Recommendations</div></div>
 <p class="sec-desc">Prioritized remediation actions across all finding categories. Each recommendation targets a specific policy violation with action steps and business context.</p>
-<div class="card">${recos}</div>` : ''}
+<div class="card">${recos}</div>
+</div>` : ''}
+
+<!-- ── Identity Access Maps ── -->
+${Object.entries(latestSnap?.identities||{}).filter(([,id])=>id?.entityGraphScreenshot).map(([actor,id])=>{
+  const snapId = latestSnap?.identities?.[actor];
+  const sc = snapId?.riskRating==='Critical'?'C':snapId?.riskRating==='High'?'H':'M';
+  const sevC = snapId?.riskRating==='Critical'?'#e05252':snapId?.riskRating==='High'?'#7c3aed':'#f0b429';
+  return `
+<div style="page-break-before:always;break-before:page">
+<div class="sec-header"><div class="sec-num">${accessMapSecNum}</div><div class="sec-name">Identity Access Map</div></div>
+<p class="sec-desc">Full repository blast-radius graph for the highest-risk identity flagged in this engagement — every repository and asset this identity can access.</p>
+<div style="background:#fff;border:1px solid #e2e8f0;border-top:3px solid ${sevC};border-radius:10px;overflow:hidden;margin-bottom:14px">
+  <div style="background:${snapId?.riskRating==='Critical'?'#fff5f5':snapId?.riskRating==='High'?'#f5f3ff':'#fffbeb'};padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-family:monospace;font-size:14px;font-weight:700;color:#0d1e3c">${actor}</div>
+      <div style="font-size:11px;color:#888;margin-top:3px">OverPrivilege Score: ${snapId?.overPrivScore??'—'} · ${snapId?.repos??'—'} repositories · Last active: ${snapId?.lastEvent||'—'}</div>
+    </div>
+    <span class="sev ${sc}" style="font-size:12px;padding:5px 14px">${snapId?.riskRating||'High'}</span>
+  </div>
+  <div style="padding:16px 18px">
+    <img src="${id.entityGraphScreenshot}" style="width:100%;border-radius:6px;display:block" />
+    <div style="margin-top:10px;font-size:10px;color:#888;text-align:center">
+      Entity relationship graph generated by BlueFlag Security — showing every repository this identity has access to and the access level granted.
+      This identity has write or admin access to a significant number of repositories, representing a broad blast radius in the event of account compromise.
+    </div>
+  </div>
+</div>
+</div>`;
+}).join('')}
 
 </div>
 
@@ -903,95 +912,6 @@ ${recos ? `
     .attr('font-size',9).attr('font-family','monospace').attr('fill','#444').text(d=>d.name);
 })();
 
-// ── Entity Graph force layouts ──────────────────────────────────────────────
-(function() {
-  const graphs = ${JSON.stringify(entityGraphs)};
-  if (!graphs.length) return;
-
-  const permColor = (p) => {
-    const s = String(p||'').toLowerCase();
-    if (s.includes('admin'))                         return '#e05252';
-    if (s.includes('write') || s.includes('maint')) return '#7c3aed';
-    if (s.includes('triage'))                        return '#f0b429';
-    return '#6b7db3'; // read / default
-  };
-
-  for (const g of graphs) {
-    const el = document.getElementById(g.svgId);
-    if (!el) continue;
-    const W = el.parentElement.clientWidth || 760;
-    const H = 360;
-    el.setAttribute('width', W);
-    el.setAttribute('height', H);
-
-    // Cap to 80 nodes: keep identity center + top repos by link count
-    const linkCount = {};
-    for (const l of g.links) {
-      const t = String(l.target?.id ?? l.target);
-      const s = String(l.source?.id ?? l.source);
-      linkCount[t] = (linkCount[t]||0) + 1;
-      linkCount[s] = (linkCount[s]||0) + 1;
-    }
-    const centerNode = g.nodes.find(n => n.type === 'user' || n.type === 'identity' || n.id === g.actor) || g.nodes[0];
-    const centerId = String(centerNode?.id ?? centerNode?.name ?? 0);
-    const repoNodes = g.nodes.filter(n => String(n.id) !== centerId)
-      .sort((a,b) => (linkCount[String(b.id)]||0) - (linkCount[String(a.id)]||0))
-      .slice(0, 79);
-    const visNodes = [
-      { ...centerNode, _center: true },
-      ...repoNodes
-    ].map((n,i) => ({ ...n, _id: String(n.id ?? i) }));
-    const nodeIds = new Set(visNodes.map(n => n._id));
-    const visLinks = g.links
-      .map(l => ({ source: String(l.source?.id ?? l.source), target: String(l.target?.id ?? l.target), permission: l.permission || l.permission_level || l.type || '' }))
-      .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
-
-    const svg = d3.select(el);
-    const sim = d3.forceSimulation(visNodes)
-      .force('link', d3.forceLink(visLinks).id(d => d._id).distance(60).strength(0.4))
-      .force('charge', d3.forceManyBody().strength(-40))
-      .force('center', d3.forceCenter(W/2, H/2))
-      .force('collision', d3.forceCollide(10))
-      .stop();
-
-    // Run simulation synchronously (for static PDF render)
-    for (let i = 0; i < 200; i++) sim.tick();
-
-    // Draw edges
-    svg.append('g').selectAll('line').data(visLinks).join('line')
-      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
-      .attr('stroke', d => permColor(d.permission))
-      .attr('stroke-width', 0.8).attr('opacity', 0.35);
-
-    // Draw nodes
-    const nodeG = svg.append('g').selectAll('g').data(visNodes).join('g');
-    nodeG.append('circle')
-      .attr('cx', d => d.x).attr('cy', d => d.y)
-      .attr('r', d => d._center ? 9 : 4)
-      .attr('fill', d => d._center ? '#1550FF' : permColor(
-        visLinks.find(l => l.target._id === d._id || l.source._id === d._id)?.permission || ''
-      ))
-      .attr('stroke', d => d._center ? '#0d3db3' : 'none')
-      .attr('stroke-width', d => d._center ? 2 : 0)
-      .attr('opacity', d => d._center ? 1 : 0.75);
-
-    // Labels: only center node + top 15 by link count get labels
-    const labelIds = new Set([centerId, ...repoNodes.slice(0,15).map(n => n._id)]);
-    nodeG.filter(d => labelIds.has(d._id)).append('text')
-      .attr('x', d => d.x + (d._center ? 0 : 6))
-      .attr('y', d => d._center ? d.y - 12 : d.y + 1)
-      .attr('text-anchor', d => d._center ? 'middle' : 'start')
-      .attr('font-size', d => d._center ? 10 : 8)
-      .attr('font-family', 'monospace')
-      .attr('font-weight', d => d._center ? '700' : '400')
-      .attr('fill', d => d._center ? '#0d1e3c' : '#555')
-      .text(d => {
-        const name = String(d.name || d.id || '');
-        return d._center ? name : (name.length > 22 ? name.slice(0,20)+'…' : name);
-      });
-  }
-})();
 </script>
 </body></html>`;
 
