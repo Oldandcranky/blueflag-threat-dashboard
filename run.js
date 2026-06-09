@@ -824,6 +824,25 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
           console.log(`  → [${elapsed()}] [identities] Access: ${access['Number of admin permissions '].join(' / ')}`);
         }
 
+        // Entity graph — blast-radius visualisation for Critical/High identities
+        if (['Critical','High'].includes(stats.riskRating)) {
+          try {
+            const graphRaw = await apiGet(`/api/analytics/entity-graph/access?display_repos=true&user=${encodeURIComponent(login)}`);
+            // API may return { nodes, links } or { nodes, edges } or { data: { nodes, links } }
+            const gd = graphRaw?.data || graphRaw;
+            const nodes = gd?.nodes || [];
+            const links = gd?.links || gd?.edges || gd?.relationships || [];
+            if (nodes.length) {
+              stats.entityGraph = { nodes, links };
+              console.log(`  → [${elapsed()}] [identities] Entity graph: ${nodes.length} nodes, ${links.length} links for ${login}`);
+            } else {
+              console.log(`  → [${elapsed()}] [identities] Entity graph returned no nodes for ${login} (keys: ${Object.keys(graphRaw||{}).join(',')})`);
+            }
+          } catch(e) {
+            console.log(`  → [${elapsed()}] [identities] Entity graph warning for ${login}: ${e.message.split('\n')[0]}`);
+          }
+        }
+
         results[actor] = stats;
 
       } catch(e) {

@@ -602,6 +602,16 @@ ${reco?`<div class="remed-box">
   const identitySecNum = dynNum++;
   const recoSecNum = dynNum;
 
+  // Collect entity graph data for all identities that have it (for inline D3 rendering)
+  const entityGraphs = Object.entries(latestSnap?.identities || {})
+    .filter(([,id]) => id?.entityGraph?.nodes?.length)
+    .map(([actor, id]) => ({
+      svgId: 'eg_' + actor.replace(/[^a-zA-Z0-9]/g,'_'),
+      actor,
+      nodes: id.entityGraph.nodes,
+      links: id.entityGraph.links || [],
+    }));
+
   const html = `<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
@@ -812,11 +822,28 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#7c3aed':'#f0b429';
   const tl=actorTimeline[actor]||{};
   const totalV=sorted.reduce((n,[,d])=>n+d.maxViolations,0);
+  const identSnap = latestSnap?.identities?.[actor];
+  const graphData = identSnap?.entityGraph;
+  const safeId = actor.replace(/[^a-zA-Z0-9]/g,'_');
+  const graphHTML = graphData?.nodes?.length ? `
+    <div style="margin:10px 0 0;background:#f8f9fc;border-radius:8px;overflow:hidden;border:1px solid ${borderC}">
+      <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888">Access Blast Radius — Repository Graph</div>
+        <div style="font-size:9px;color:#aaa">${graphData.nodes.length} nodes · ${graphData.links?.length||0} connections</div>
+      </div>
+      <svg id="eg_${safeId}" width="100%" height="360" style="display:block"></svg>
+      <div style="padding:6px 14px 8px;display:flex;gap:14px">
+        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1550FF"></span>Identity</span>
+        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e05252"></span>Admin</span>
+        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c3aed"></span>Write/Maintain</span>
+        <span style="font-size:9px;color:#888;display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7db3"></span>Read/Triage</span>
+      </div>
+    </div>` : '';
   return `<div style="background:#fff;border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
     <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
       <div>
         <div style="font-family:monospace;font-size:13px;font-weight:700;color:#0d1e3c;word-break:break-all">${actor}</div>
-        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} assessments · ${totalV.toLocaleString()} total violations</div>
+        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} assessments · ${totalV.toLocaleString()} total violations${identSnap?.overPrivScore!=null?' · OverPrivilege Score: '+identSnap.overPrivScore:''}</div>
       </div>
       <span class="sev ${sc}" style="font-size:11px;padding:4px 12px;flex-shrink:0;margin-left:12px">${topSev}</span>
     </div>
@@ -826,6 +853,7 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
         const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
         return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
       }).join('')}</tbody></table>
+      ${graphHTML}
     </div>
   </div>`;
 }).join('')}` : ''}
@@ -868,6 +896,96 @@ ${recos ? `
     .attr('y',d=>(d.y0+d.y1)/2).attr('dy','0.35em')
     .attr('text-anchor',d=>d.x0===minX||d.x0===maxX?'start':'end')
     .attr('font-size',9).attr('font-family','monospace').attr('fill','#444').text(d=>d.name);
+})();
+
+// ── Entity Graph force layouts ──────────────────────────────────────────────
+(function() {
+  const graphs = ${JSON.stringify(entityGraphs)};
+  if (!graphs.length) return;
+
+  const permColor = (p) => {
+    const s = String(p||'').toLowerCase();
+    if (s.includes('admin'))                         return '#e05252';
+    if (s.includes('write') || s.includes('maint')) return '#7c3aed';
+    if (s.includes('triage'))                        return '#f0b429';
+    return '#6b7db3'; // read / default
+  };
+
+  for (const g of graphs) {
+    const el = document.getElementById(g.svgId);
+    if (!el) continue;
+    const W = el.parentElement.clientWidth || 760;
+    const H = 360;
+    el.setAttribute('width', W);
+    el.setAttribute('height', H);
+
+    // Cap to 80 nodes: keep identity center + top repos by link count
+    const linkCount = {};
+    for (const l of g.links) {
+      const t = String(l.target?.id ?? l.target);
+      const s = String(l.source?.id ?? l.source);
+      linkCount[t] = (linkCount[t]||0) + 1;
+      linkCount[s] = (linkCount[s]||0) + 1;
+    }
+    const centerNode = g.nodes.find(n => n.type === 'user' || n.type === 'identity' || n.id === g.actor) || g.nodes[0];
+    const centerId = String(centerNode?.id ?? centerNode?.name ?? 0);
+    const repoNodes = g.nodes.filter(n => String(n.id) !== centerId)
+      .sort((a,b) => (linkCount[String(b.id)]||0) - (linkCount[String(a.id)]||0))
+      .slice(0, 79);
+    const visNodes = [
+      { ...centerNode, _center: true },
+      ...repoNodes
+    ].map((n,i) => ({ ...n, _id: String(n.id ?? i) }));
+    const nodeIds = new Set(visNodes.map(n => n._id));
+    const visLinks = g.links
+      .map(l => ({ source: String(l.source?.id ?? l.source), target: String(l.target?.id ?? l.target), permission: l.permission || l.permission_level || l.type || '' }))
+      .filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+
+    const svg = d3.select(el);
+    const sim = d3.forceSimulation(visNodes)
+      .force('link', d3.forceLink(visLinks).id(d => d._id).distance(60).strength(0.4))
+      .force('charge', d3.forceManyBody().strength(-40))
+      .force('center', d3.forceCenter(W/2, H/2))
+      .force('collision', d3.forceCollide(10))
+      .stop();
+
+    // Run simulation synchronously (for static PDF render)
+    for (let i = 0; i < 200; i++) sim.tick();
+
+    // Draw edges
+    svg.append('g').selectAll('line').data(visLinks).join('line')
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
+      .attr('stroke', d => permColor(d.permission))
+      .attr('stroke-width', 0.8).attr('opacity', 0.35);
+
+    // Draw nodes
+    const nodeG = svg.append('g').selectAll('g').data(visNodes).join('g');
+    nodeG.append('circle')
+      .attr('cx', d => d.x).attr('cy', d => d.y)
+      .attr('r', d => d._center ? 9 : 4)
+      .attr('fill', d => d._center ? '#1550FF' : permColor(
+        visLinks.find(l => l.target._id === d._id || l.source._id === d._id)?.permission || ''
+      ))
+      .attr('stroke', d => d._center ? '#0d3db3' : 'none')
+      .attr('stroke-width', d => d._center ? 2 : 0)
+      .attr('opacity', d => d._center ? 1 : 0.75);
+
+    // Labels: only center node + top 15 by link count get labels
+    const labelIds = new Set([centerId, ...repoNodes.slice(0,15).map(n => n._id)]);
+    nodeG.filter(d => labelIds.has(d._id)).append('text')
+      .attr('x', d => d.x + (d._center ? 0 : 6))
+      .attr('y', d => d._center ? d.y - 12 : d.y + 1)
+      .attr('text-anchor', d => d._center ? 'middle' : 'start')
+      .attr('font-size', d => d._center ? 10 : 8)
+      .attr('font-family', 'monospace')
+      .attr('font-weight', d => d._center ? '700' : '400')
+      .attr('fill', d => d._center ? '#0d1e3c' : '#555')
+      .text(d => {
+        const name = String(d.name || d.id || '');
+        return d._center ? name : (name.length > 22 ? name.slice(0,20)+'…' : name);
+      });
+  }
 })();
 </script>
 </body></html>`;
