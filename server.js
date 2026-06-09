@@ -436,7 +436,8 @@ app.get('/api/arc/:id', (req, res) => {
   }
 
   // __NUM__ is a placeholder replaced with a dynamic section counter after rendering
-  function sectionBlock(label, desc, objective, ps, extra) {
+  // bottomExtra is rendered inside the no-break wrapper with implication + remed steps
+  function sectionBlock(label, desc, objective, ps, extra, bottomExtra) {
     if (!ps.length) return '';
     const top = ps[0];
     const reco = matchRecoByName(top.name);
@@ -452,13 +453,16 @@ app.get('/api/arc/:id', (req, res) => {
   ${others.slice(0,2).map(p=>`<p style="margin-top:4px;color:#555;font-size:12px">${p.totalViolations.toLocaleString()} ${p.name}</p>`).join('')}
 </div>
 ${extra||''}
+<div style="break-inside:avoid;page-break-inside:avoid">
+${bottomExtra||''}
 ${reco?.implication?`<div class="implication-box"><strong>Implication (Or Why it Matters):</strong> ${reco.implication}${reco.salesLine?`<div style="margin-top:10px;padding:7px 10px;background:#dbeafe;border-left:3px solid #1550FF;border-radius:0 4px 4px 0;color:#1550FF;font-size:12px;font-weight:600">${reco.salesLine}</div>`:''}</div>`:''}
 ${reco?`<div class="remed-box">
   <div class="remed-title">Suggested Remediation Steps</div>
   <div class="remed-step"><span class="remed-badge immed">Immediate</span><span>${reco.desc}</span></div>
   <div class="remed-step"><span class="remed-badge short">Short-term</span><span>${others.length?`Extend remediation to all ${ps.length} findings in this category — ${others.map(p=>p.name).join('; ')}. Assign ownership and SLAs for each.`:'Implement automated controls and establish SLAs to prevent recurrence.'}</span></div>
   <div class="remed-step"><span class="remed-badge ongoing">Ongoing</span><span>Configure BlueFlag continuous monitoring to surface new violations in this category within 24 hours of detection. Review findings in monthly security stand-ups.</span></div>
-</div>`:''}`;
+</div>`:''}
+</div>`;
   }
 
   function buildAiSection(agents) {
@@ -494,16 +498,16 @@ ${reco?`<div class="remed-box">
 </div>
 <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
   <table style="width:100%;border-collapse:collapse">
-    <thead><tr style="background:#312e81">
-      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Agent Name</th>
-      <th style="color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700">Type</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Activity</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Agent Commits</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Human Commits</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Opened</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Approved</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Commented</th>
-      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700">Last Active</th>
+    <thead><tr style="background:#312e81;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+      <th style="background:#312e81;color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;-webkit-print-color-adjust:exact;print-color-adjust:exact">Agent Name</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Type</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Activity</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Agent Commits</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Human Commits</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Opened</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Approved</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Commented</th>
+      <th style="background:#312e81;color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Last Active</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
@@ -591,8 +595,8 @@ ${reco?`<div class="remed-box">
       `<div class="card" style="margin-bottom:14px">
         <div class="card-title">Identity → Policy → Severity Flow</div>
         <svg id="sankeyChart" height="320"></svg>
-      </div>
-      <div class="two-col">
+      </div>`,
+      `<div class="two-col" style="margin-bottom:14px">
         <div class="card">
           <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
           ${chronics.length?`<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>`:'<div style="color:#aaa;font-size:12px">None — no chronic identities found</div>'}
