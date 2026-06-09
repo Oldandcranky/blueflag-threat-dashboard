@@ -762,7 +762,7 @@ tr:hover td { background:#fafbff; }
 <div class="page">
 
 <!-- ── Cover ── -->
-<div class="cover" style="page-break-after:always;break-after:page">
+<div class="cover">
   <div class="cover-top">
     <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
@@ -785,7 +785,7 @@ tr:hover td { background:#fafbff; }
 <div class="body">
 
 <!-- ── Section 1: Executive Summary ── -->
-<div style="page-break-before:always;break-before:page">
+<div>
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
 <p class="sec-desc">High-level findings BlueFlag Security identified in ${tenant.name}'s environment — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
