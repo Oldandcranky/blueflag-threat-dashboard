@@ -494,16 +494,16 @@ ${reco?`<div class="remed-box">
 </div>
 <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
   <table style="width:100%;border-collapse:collapse">
-    <thead><tr style="background:#312e81">
-      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Agent Name</th>
-      <th style="color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700">Type</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Activity</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Agent Commits</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Human Commits</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Opened</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Approved</th>
-      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Commented</th>
-      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700">Last Active</th>
+    <thead><tr style="background:#312e81;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+      <th style="background:#312e81;color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;-webkit-print-color-adjust:exact;print-color-adjust:exact">Agent Name</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Type</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Activity</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Agent Commits</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Human Commits</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Opened</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Approved</th>
+      <th style="background:#312e81;color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">PRs Commented</th>
+      <th style="background:#312e81;color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">Last Active</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
