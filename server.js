@@ -230,24 +230,112 @@ app.get('/api/arc/:id', (req, res) => {
 
   // ── Auto-generated Recommendations ───────────────────────────────────────────
   const RECO_MAP = {
-    'Terraform files with critical or high misconfigurations':        { n:1, action:'Implement mandatory IaC scanning gate',              sla:'14 days', desc:'Enforce automated Terraform scanning (Checkov or tfsec) as a required CI check before any plan is applied. Block merges that introduce critical or high severity misconfigurations. Assign ownership to the infrastructure team.' },
-    'Branch protection bypassed by administrators':                   { n:2, action:'Enforce non-bypassable branch protection',            sla:'7 days',  desc:'Enable non-bypassable branch protection rules at the organization level for all default branches. Require pull request reviews and passing status checks. Log all exception requests via a formal approval process.' },
-    'Credential detected in code commit':                             { n:3, action:'Deploy pre-commit secret scanning',                   sla:'7 days',  desc:'Install pre-commit hooks (git-secrets or truffleHog) to block credentials from entering the codebase. Enable GitHub Advanced Security secret scanning with push protection. Rotate any credentials identified in this engagement immediately.' },
-    'Code scans with critical or high vulnerabilities':               { n:4, action:'Add SAST blocking gate to CI pipeline',               sla:'21 days', desc:'Integrate code vulnerability scanning into the CI pipeline with a blocking gate for Critical/High severity findings. Triage existing findings and establish a 30-day remediation SLA for any new criticals introduced.' },
-    'Personal access tokens with write access':                       { n:5, action:'Enforce PAT rotation and access review',              sla:'7 days',  desc:'Immediately revoke all personal access tokens inactive for 30+ days with write access. Implement a quarterly PAT rotation policy and restrict PAT scope to the minimum required permissions. Consider migrating to short-lived GitHub Apps tokens.' },
-    'Merged pull requests with check run failures':                   { n:6, action:'Require passing CI checks before merge',              sla:'14 days', desc:'Configure branch protection rules to require all status checks to pass before merging. Remove any admin override permissions that allow bypassing failed checks. This prevents broken or vulnerable code from reaching the default branch.' },
-    'Open source packages with critical vulnerabilities':             { n:4, action:'Block critical OSS vulnerabilities at CI',            sla:'14 days', desc:'Integrate SCA (Software Composition Analysis) as a required pipeline gate. Block any PR introducing packages with CVSS ≥ 9.0. Establish a 30-day remediation SLA for existing high-severity OSS findings.' },
-    'Open source packages with high vulnerabilities':                 { n:5, action:'Remediate high-severity OSS dependency debt',         sla:'30 days', desc:'Audit all flagged dependencies and upgrade to patched versions. Integrate SCA scanning into CI with a policy to block CVSS ≥ 7.0 introductions. Assign ownership to each affected team.' },
-    'Suspicious activity on repository after long period of inactivity': { n:6, action:'Audit and retire dormant service accounts',        sla:'14 days', desc:'Review all service accounts showing activity spikes after extended inactivity. Validate whether each is still required, rotate credentials, and implement just-in-time access provisioning for non-human identities.' },
-    'Unverified commit changes to build configuration files':         { n:5, action:'Enforce signed commits on CI/CD configurations',     sla:'21 days', desc:'Require GPG-signed commits for changes to build configuration files (.yml, Dockerfile, Makefile). Add a mandatory review requirement for any CI/CD configuration change.' },
-    'PRs approved by users with no prior commit history':             { n:6, action:'Restrict PR approval rights to active contributors', sla:'14 days', desc:'Audit all identities with PR approval permissions and remove access from accounts with no meaningful commit history. Implement CODEOWNERS files to require domain-expert review for sensitive paths.' },
-    'Suspicious spike of activity on new repositories by identities': { n:5, action:'Investigate and restrict service account repo access',sla:'7 days',  desc:'Immediately investigate the service account showing repository creation spikes. Restrict its permissions to only the repositories it needs. Enable alerts for unusual repository creation activity across all service accounts.' },
-    'Mismatched committer and author names':                          { n:6, action:'Enforce verified committer identity',                sla:'21 days', desc:'Require all commits to be verified via SSH or GPG signing. Audit identities with mismatched author/committer names to identify potential impersonation or shared credential usage.' },
+    // ── IaC / Terraform ──────────────────────────────────────────────────────
+    'Terraform files with critical or high misconfigurations': {
+      n:1, action:'Implement mandatory IaC scanning gate', sla:'14 days',
+      desc:'Enforce automated Terraform scanning (Checkov or tfsec) as a required CI check before any plan is applied. Block merges that introduce critical or high severity misconfigurations. Assign ownership to the infrastructure team.',
+      implication:'Infrastructure-as-Code misconfigurations committed to source control get deployed — often automatically — to cloud environments. A single Terraform misconfiguration can expose databases to the public internet, disable encryption, or grant overly permissive IAM roles. Unlike application vulnerabilities, IaC misconfigurations often persist silently in production for months because there is no runtime error — just a quietly over-exposed environment.'
+    },
+    'Unverified commit changes to terraform files': {
+      n:2, action:'Require signed commits on all Terraform changes', sla:'14 days',
+      desc:'Require GPG or SSH commit signing for all changes to Terraform configuration files. Enforce this as a branch protection requirement and add a required code review for all infrastructure-as-code changes. Audit recent unverified Terraform commits for unauthorized modifications.',
+      implication:'Unverified changes to Terraform configurations translate directly into infrastructure changes. An attacker or malicious insider who modifies a Terraform file without signature verification can silently expand cloud permissions, open firewall rules, or provision unauthorized resources — deployed automatically through your CI/CD pipeline. Without commit verification, post-breach forensics cannot definitively establish who authorized a configuration change, which is a direct liability in regulatory investigations.'
+    },
+    // ── Secrets / Credentials ────────────────────────────────────────────────
+    'Credential detected in code commit': {
+      n:3, action:'Deploy pre-commit secret scanning', sla:'7 days',
+      desc:'Install pre-commit hooks (git-secrets or truffleHog) to block credentials from entering the codebase. Enable GitHub Advanced Security secret scanning with push protection. Rotate any credentials identified in this engagement immediately.',
+      implication:'A credential committed to source code is effectively public — even in a private repository — because every developer, CI system, and third-party integration with repo access can read it. The average time-to-exploit for an exposed credential is under 4 minutes. These tokens must be treated as fully compromised the moment they appear in a commit, even if the commit is later deleted.'
+    },
+    'Personal access tokens with write access': {
+      n:5, action:'Enforce PAT rotation and access review', sla:'7 days',
+      desc:'Immediately revoke all personal access tokens inactive for 30+ days with write access. Implement a quarterly PAT rotation policy and restrict PAT scope to the minimum required permissions. Consider migrating to short-lived GitHub Apps tokens.',
+      implication:'Stale personal access tokens are one of the most common initial access vectors in software supply chain attacks. Tokens with write access that have not been used in 30+ days are forgotten by their owners but remain fully functional entry points — acquirable through phishing, credential dumps, or dark web purchases. Unlike passwords, PATs do not expire by default and are rarely covered by MFA policies.'
+    },
+    // ── Code Quality / SAST / OSS ────────────────────────────────────────────
+    'Code scans with critical or high vulnerabilities': {
+      n:4, action:'Add SAST blocking gate to CI pipeline', sla:'21 days',
+      desc:'Integrate code vulnerability scanning into the CI pipeline with a blocking gate for Critical/High severity findings. Triage existing findings and establish a 30-day remediation SLA for any new criticals introduced.',
+      implication:'Unresolved SAST findings in active code mean known exploit patterns are already present in your codebase. Attackers routinely scan for these exact signatures. Each unresolved finding represents a measurable, documented liability — if exploited, it becomes evidence that the organization was aware of the risk and failed to act.'
+    },
+    'Open source packages with critical vulnerabilities': {
+      n:4, action:'Block critical OSS vulnerabilities at CI', sla:'14 days',
+      desc:'Integrate SCA (Software Composition Analysis) as a required pipeline gate. Block any PR introducing packages with CVSS ≥ 9.0. Establish a 30-day remediation SLA for existing high-severity OSS findings.',
+      implication:'Critical-severity OSS vulnerabilities (CVSS ≥ 9.0) have public proof-of-concept exploits available, often within days of disclosure. Shipping software with known critical dependencies is the leading cause of supply chain breaches. Organizations that cannot demonstrate active dependency vulnerability management are increasingly failing cyber insurance renewals and enterprise vendor security assessments.'
+    },
+    'Open source packages with high vulnerabilities': {
+      n:5, action:'Remediate high-severity OSS dependency debt', sla:'30 days',
+      desc:'Audit all flagged dependencies and upgrade to patched versions. Integrate SCA scanning into CI with a policy to block CVSS ≥ 7.0 introductions. Assign ownership to each affected team.',
+      implication:'High-severity OSS vulnerabilities represent accumulating debt that creates compounding risk over time. As new exploit techniques emerge, today\'s high finding becomes tomorrow\'s critical breach vector. Unmanaged dependency debt also signals to auditors and customers that your SDLC lacks structured security controls — an increasingly common reason for failed vendor reviews and lost contracts.'
+    },
+    'Open source packages with low vulnerabilities': {
+      n:8, action:'Establish systematic dependency maintenance cadence', sla:'60 days',
+      desc:'Establish a quarterly dependency maintenance cycle to address low-severity findings before they accumulate. Implement automated dependency update tooling (Dependabot or Renovate) to keep packages current. Use a documented patch-level SLA to demonstrate systematic vulnerability management to auditors.',
+      implication:'While individually low-risk, unpatched low-severity dependencies signal that dependency hygiene is not systematically managed. Attackers chain low-severity findings to achieve higher-impact exploits. More critically, organizations that cannot demonstrate a consistent patch cadence — even for low-severity findings — struggle to pass compliance frameworks like SOC 2 Type II and ISO 27001 that require evidence of ongoing vulnerability management.'
+    },
+    'Open source packages with GPL license': {
+      n:7, action:'Audit and remediate GPL license exposure', sla:'30 days',
+      desc:'Audit all GPL-licensed dependencies across your codebase and remove or replace those incompatible with your commercial licensing model. Engage legal counsel to assess current exposure. Implement automated license scanning as a required CI gate to prevent new GPL introductions.',
+      implication:'GPL-licensed dependencies require that any software incorporating them also be released under GPL terms. For commercial products, shipping GPL-licensed code without compliance can expose the organization to copyright litigation and force the release of proprietary source code. This risk is typically invisible until an acquisition, audit, or legal challenge surfaces it — at which point remediation is costly and disruptive.'
+    },
+    'Open source packages with LGPL license': {
+      n:7, action:'Review LGPL dependency linking and distribution', sla:'30 days',
+      desc:'Review all LGPL-licensed dependencies for compliance with linking and distribution requirements. Document modification status and distribution method for each. Implement automated license scanning in CI and add license review to your dependency update process.',
+      implication:'LGPL dependencies carry obligations around how they are linked and distributed. While less restrictive than GPL, non-compliance can still require disclosure of modifications and affects how software is packaged and shipped. This exposure frequently surfaces during M&A due diligence or enterprise customer security reviews, creating deal-blocking findings at the worst possible moment.'
+    },
+    // ── Branch Protection / CI/CD ────────────────────────────────────────────
+    'Branch protection bypassed by administrators': {
+      n:2, action:'Enforce non-bypassable branch protection', sla:'7 days',
+      desc:'Enable non-bypassable branch protection rules at the organization level for all default branches. Require pull request reviews and passing status checks. Log all exception requests via a formal approval process.',
+      implication:'When administrators can bypass branch protection, your most sensitive code can be modified without review or audit by anyone with admin access. A single compromised admin account becomes a direct path to injecting malicious code into production deployments. This gap also violates most compliance frameworks (SOC 2, ISO 27001) which require separation of duties on code changes.'
+    },
+    'Merged pull requests with check run failures': {
+      n:6, action:'Require passing CI checks before merge', sla:'14 days',
+      desc:'Configure branch protection rules to require all status checks to pass before merging. Remove any admin override permissions that allow bypassing failed checks. This prevents broken or vulnerable code from reaching the default branch.',
+      implication:'Merging code with failing CI checks means security, quality, or compliance gates are being actively bypassed. Every merge with a failed check is a documented instance of policy override — creating audit exposure and increasing the probability that insecure or broken code reaches production. This pattern, if sustained, signals that your security controls are decorative rather than enforced.'
+    },
+    'Unverified commit changes to build configuration files': {
+      n:5, action:'Enforce signed commits on CI/CD configurations', sla:'21 days',
+      desc:'Require GPG-signed commits for changes to build configuration files (.yml, Dockerfile, Makefile). Add a mandatory review requirement for any CI/CD configuration change.',
+      implication:'Build configuration files (CI/CD pipelines, Dockerfiles, Makefiles) are the most sensitive files in your repository. An unverified change to a build script can inject malicious steps that exfiltrate secrets or tamper with release artifacts — all while appearing as legitimate build output. The SolarWinds and XZ Utils attacks both followed this exact pattern. Unsigned commits to these files mean there is no cryptographic proof of who authorized a change.'
+    },
+    // ── Identity / Access ────────────────────────────────────────────────────
+    'Identities with multiple risky policy violations': {
+      n:2, action:'Prioritize access review for high-concentration risk identities', sla:'7 days',
+      desc:'Prioritize a full access review for all identities triggering multiple simultaneous policy violations. Revoke excess permissions immediately, require re-authentication, and place these accounts under enhanced monitoring. Treat each as a potential insider threat or compromised account until cleared.',
+      implication:'When a single identity triggers multiple policy violations simultaneously, it signals either a severely over-privileged account or an identity engaged in genuinely risky behavior across several dimensions. These accounts represent concentrated blast radius — one compromised account with five violations poses dramatically more risk than five accounts with one each. These are the highest-priority targets for access review and behavioral investigation.'
+    },
+    'PRs approved by users with no prior commit history': {
+      n:6, action:'Restrict PR approval rights to active contributors', sla:'14 days',
+      desc:'Audit all identities with PR approval permissions and remove access from accounts with no meaningful commit history. Implement CODEOWNERS files to require domain-expert review for sensitive paths.',
+      implication:'Pull request approvals from accounts with no commit history suggest ghost accounts, compromised credentials used for fraudulent approval, or a code review process that has broken down. Your code is being signed off by identities that cannot credibly evaluate what they are approving. This is a known vector for insider threat and supply chain injection attacks, and creates direct liability in the event of a breach.'
+    },
+    'Mismatched committer and author names': {
+      n:6, action:'Enforce verified committer identity', sla:'21 days',
+      desc:'Require all commits to be verified via SSH or GPG signing. Audit identities with mismatched author/committer names to identify potential impersonation or shared credential usage.',
+      implication:'A mismatch between commit author and committer identity means code is being attributed to someone who did not write it, or written by someone obscuring their identity. This indicates credential sharing, ghostwriting, or identity spoofing — all of which undermine your audit trail and make it impossible to accurately attribute who introduced a specific change. In regulated environments this is a direct compliance failure.'
+    },
+    // ── Behavioral / Threat Detection ────────────────────────────────────────
+    'Suspicious activity on repository after long period of inactivity': {
+      n:6, action:'Audit and retire dormant service accounts', sla:'14 days',
+      desc:'Review all service accounts showing activity spikes after extended inactivity. Validate whether each is still required, rotate credentials, and implement just-in-time access provisioning for non-human identities.',
+      implication:'A dormant repository suddenly becoming active is a strong indicator of a compromised credential or unauthorized actor. Attackers specifically target inactive repositories because they carry the same access permissions as active ones but receive far less monitoring. This pattern is directly associated with supply chain attacks where malicious code is quietly injected into rarely-audited codebases.'
+    },
+    'Suspicious hour of user activity': {
+      n:3, action:'Investigate off-hours access and establish behavioral baselines', sla:'3 days',
+      desc:'Immediately review all accounts flagged for off-hours activity. Correlate with recent access events, determine if the activity was authorized, and verify the account has not been compromised. Enable enhanced logging for flagged identities and consider temporary access suspension pending investigation.',
+      implication:'Developer activity at unusual hours — outside their established working patterns — is a recognized early indicator of credential compromise or insider threat. Legitimate developers have predictable activity windows; anomalous off-hours access often correlates with credential theft by actors operating in different time zones. Without behavioral baselines, these events are completely invisible. BlueFlag\'s detection of this pattern provides the earliest possible warning before a breach is confirmed.'
+    },
+    'Suspicious spike of activity on new repositories by identities': {
+      n:5, action:'Investigate and restrict service account repo access', sla:'7 days',
+      desc:'Immediately investigate the service account showing repository creation spikes. Restrict its permissions to only the repositories it needs. Enable alerts for unusual repository creation activity across all service accounts.',
+      implication:'A sudden spike in repository access by a single identity suggests either account compromise or a developer exfiltrating code before departing. Bulk repository cloning is a standard data exfiltration pattern — attackers or malicious insiders access as many repositories as possible in a short window, knowing that revocation will follow. Time-to-detection is critical; every minute the window stays open, more intellectual property is at risk.'
+    },
   };
 
   const recos = topPolicies.slice(0, 8)
     .map(p => {
-      const match = Object.entries(RECO_MAP).find(([key]) => p.name.toLowerCase().includes(key.toLowerCase().split(' ').slice(0,4).join(' ')));
+      const match = Object.entries(RECO_MAP).find(([key]) => p.name.toLowerCase().includes(key.toLowerCase().split(' ').slice(0,5).join(' ')));
       if (!match) return null;
       return { p, r: match[1] };
     })
@@ -260,6 +348,7 @@ app.get('/api/arc/:id', (req, res) => {
         <div>
           <div class="rec-title">${r.action}</div>
           <div class="rec-desc">${r.desc}</div>
+          ${r.implication ? `<div class="rec-implication"><strong>Why it matters:</strong> ${r.implication}</div>` : ''}
           <div class="rec-meta">Target: ${r.sla} · Policy: ${p.name} · ${p.totalViolations.toLocaleString()} violations</div>
         </div>
       </div>`;
@@ -440,6 +529,7 @@ tr:hover td { background:#fafbff; }
 .rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
 .rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:4px; }
 .rec-desc { font-size:12px; color:#555; line-height:1.55; }
+.rec-implication { font-size:11px; color:#0f4c4c; background:#e6f7f5; border-left:3px solid #0d9488; padding:6px 9px; border-radius:0 4px 4px 0; margin-top:6px; line-height:1.6; }
 .rec-meta { font-size:10px; color:#aaa; margin-top:5px; font-family:monospace; }
 
 /* ── Charts ────────────────────────────────────────────────────────────── */
@@ -836,6 +926,7 @@ tr:last-child td { border-bottom:none; }
 .rec-body { flex:1; }
 .rec-title { font-size:13px; font-weight:700; color:#0d1e3c; margin-bottom:3px; }
 .rec-desc { font-size:12px; color:#666; line-height:1.55; }
+.rec-implication { font-size:11px; color:#0f4c4c; background:#e6f7f5; border-left:3px solid #0d9488; padding:6px 9px; border-radius:0 4px 4px 0; margin-top:6px; line-height:1.6; }
 .rec-meta { font-size:10px; color:#aaa; margin-top:4px; font-family:monospace; }
 
 /* Sankey */
