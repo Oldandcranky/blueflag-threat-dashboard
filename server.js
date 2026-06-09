@@ -416,13 +416,14 @@ app.get('/api/arc/:id', (req, res) => {
     </table>`;
   }
 
-  function sectionBlock(num, label, desc, objective, ps, extra) {
+  // __NUM__ is a placeholder replaced with a dynamic section counter after rendering
+  function sectionBlock(label, desc, objective, ps, extra) {
     if (!ps.length) return '';
     const top = ps[0];
     const reco = matchRecoByName(top.name);
     const others = ps.slice(1);
     return `
-<div class="sec-header"><div class="sec-num">${num}</div><div class="sec-name">${label}</div></div>
+<div class="sec-header"><div class="sec-num">__NUM__</div><div class="sec-name">${label}</div></div>
 <p class="sec-sub">${desc}</p>
 <div class="card vt-card">${violTable(ps)}</div>
 <div class="obj-banner">Objective: ${objective}</div>
@@ -439,6 +440,60 @@ ${reco?`<div class="remed-box">
   <div class="remed-step"><span class="remed-badge short">Short-term</span><span>${others.length?`Extend remediation to all ${ps.length} findings in this category — ${others.map(p=>p.name).join('; ')}. Assign ownership and SLAs for each.`:'Implement automated controls and establish SLAs to prevent recurrence.'}</span></div>
   <div class="remed-step"><span class="remed-badge ongoing">Ongoing</span><span>Configure BlueFlag continuous monitoring to surface new violations in this category within 24 hours of detection. Review findings in monthly security stand-ups.</span></div>
 </div>`:''}`;
+  }
+
+  function buildAiSection(agents) {
+    if (!agents.length) return '';
+    const totalCommits = agents.reduce((n,a)=>n+(a.agentPrimaryCommits||0)+(a.humanPrimaryCommits||0),0);
+    const activeAgents = agents.filter(a=>a.lastActive&&a.lastActive!=='-').length;
+    const topAgent = agents.reduce((a,b)=>(b.totalActivity+b.humanPrimaryCommits)>(a.totalActivity+a.humanPrimaryCommits)?b:a, agents[0]);
+    const rows = agents.map(a=>{
+      const typeColor = a.type==='Agent'?'#dc2626':'#7c3aed';
+      const typeBg    = a.type==='Agent'?'#fee2e2':'#f3e8ff';
+      const actColor  = (a.totalActivity||0)>500?'#dc2626':(a.totalActivity||0)>50?'#c2410c':'#555';
+      return `<tr>
+        <td style="font-weight:600;color:#0d1e3c;padding:8px 14px">${a.name}</td>
+        <td style="padding:8px 8px;text-align:center"><span style="font-size:10px;font-weight:700;background:${typeBg};color:${typeColor};padding:2px 7px;border-radius:4px">${a.type||'App'}</span></td>
+        <td style="font-family:monospace;font-weight:700;text-align:right;padding:8px 8px;color:${actColor}">${(a.totalActivity||0).toLocaleString()}</td>
+        <td style="font-family:monospace;text-align:right;padding:8px 8px;color:#7c3aed">${(a.agentPrimaryCommits||0).toLocaleString()}</td>
+        <td style="font-family:monospace;text-align:right;padding:8px 8px;color:#555">${(a.humanPrimaryCommits||0).toLocaleString()}</td>
+        <td style="font-family:monospace;text-align:right;padding:8px 8px">${a.prsOpened||0}</td>
+        <td style="font-family:monospace;text-align:right;padding:8px 8px">${a.prsCommented||0}</td>
+        <td style="font-size:11px;color:#888;padding:8px 14px">${a.lastActive||'—'}</td>
+      </tr>`;
+    }).join('');
+    return `
+<div class="sec-header"><div class="sec-num">__NUM__</div><div class="sec-name">AI Agent Risk</div></div>
+<p class="sec-sub">Identify and govern AI coding assistants with write access to repositories — an emerging attack surface most organizations are not yet monitoring.</p>
+<div class="obj-banner">Objective: Identify AI coding tools operating in your repositories, assess their access levels, and establish governance controls before autonomous agents create unreviewed changes</div>
+<div class="key-finding">
+  <div class="key-finding-label">Key Highlight Finding/s:</div>
+  <p>${agents.length} AI agent${agents.length>1?'s':''} detected — ${totalCommits.toLocaleString()} total commits attributed to AI tools</p>
+  ${activeAgents>0?`<p style="margin-top:4px;color:#555;font-size:12px">${activeAgents} of ${agents.length} agents active within the last 90 days</p>`:''}
+  ${topAgent?`<p style="margin-top:4px;color:#555;font-size:12px">Most active: ${topAgent.name} (${topAgent.type||'App'}) — ${(topAgent.totalActivity+topAgent.humanPrimaryCommits).toLocaleString()} combined activity events</p>`:''}
+</div>
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:#312e81">
+      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Agent Name</th>
+      <th style="color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700">Type</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Activity</th>
+      <th style="color:#7c3aed;background:#1e1b4b;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Agent Commits</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Human Commits</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Opened</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Commented</th>
+      <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700">Last Active</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>
+<div class="implication-box"><strong>Implication (Or Why it Matters):</strong> AI coding assistants like GitHub Copilot, Cursor, and Claude are now active participants in your software development lifecycle — committing code, commenting on pull requests, and in some cases operating as fully autonomous agents. Unlike human developers, AI agents do not go through onboarding, background checks, or access reviews. Their credentials do not expire, their behavior is not baselined, and their commits may not be subject to the same review requirements as human code. As AI-assisted development scales, the blast radius of a misconfigured or compromised AI agent grows proportionally. Most organizations have no visibility into which AI tools are active, what access they hold, or whether their output is reviewed before it reaches production.</div>
+<div class="remed-box">
+  <div class="remed-title">Suggested Remediation Steps</div>
+  <div class="remed-step"><span class="remed-badge immed">Immediate</span><span>Audit all ${agents.length} AI agent${agents.length>1?'s':''} detected — verify each has a documented business owner, confirm access level matches required scope, and flag any Agent-type identities committing code autonomously without human review gates.</span></div>
+  <div class="remed-step"><span class="remed-badge short">Short-term</span><span>Establish an AI Agent Governance Policy: require human approval on all PRs containing AI-primary commits, restrict agent scopes to specific repositories, and implement signed-commit requirements for all agent identities.</span></div>
+  <div class="remed-step"><span class="remed-badge ongoing">Ongoing</span><span>Configure BlueFlag AI Agent monitoring to track new agent installations, alert on scope expansion, and report monthly on AI-attributable code volume entering production. This is a rapidly evolving attack surface — continuous visibility is essential.</span></div>
+</div>`;
   }
 
   // Sankey: Identities → Policies → Severity (from latest snapshot)
@@ -504,6 +559,48 @@ ${reco?`<div class="remed-box">
       <div style="font-family:monospace;font-size:11px;font-weight:700;width:60px;text-align:right;flex-shrink:0;color:${c}">${p.totalViolations.toLocaleString()}</div>
     </div>`;
   }).join('');
+
+  // ── Assign dynamic section numbers (skip empty sections, number sequentially from 2) ──
+  const aiAgents = latestSnap?.aiAgents || [];
+  const rawSections = [
+    sectionBlock('Human Developer Risk Analysis',
+      'Identify and analyze security risks associated with individual developer activities, behaviors, and access patterns.',
+      'Identify and remediate developers with excessive access, risky behaviors, or indicators of credential compromise',
+      bucketed.human,
+      `<div class="card" style="margin-bottom:14px">
+        <div class="card-title">Identity → Policy → Severity Flow</div>
+        <svg id="sankeyChart" height="320"></svg>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
+          ${chronics.length?`<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>`:'<div style="color:#aaa;font-size:12px">None — no chronic identities found</div>'}
+          ${resolved.length?`<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>`:''}
+        </div>
+        <div class="card">
+          <div class="card-title">Top Violations by Volume</div>
+          ${topViolBar||'<div style="color:#aaa;font-size:12px">No data</div>'}
+        </div>
+      </div>`
+    ),
+    sectionBlock('Code & Supply Chain Risk',
+      'Assess risks from code vulnerabilities, exposed secrets, and software dependency chains across all repositories.',
+      'Identify and remediate exposed credentials, vulnerable dependencies, and code quality gate bypass patterns',
+      bucketed.code, ''
+    ),
+    sectionBlock('Infrastructure & Toolchain Posture',
+      'Evaluate and strengthen security configurations across infrastructure-as-code and development toolchain.',
+      'Identify and remediate weak infrastructure configurations and unsigned changes to critical build and IaC files',
+      bucketed.toolchain, ''
+    ),
+    buildAiSection(aiAgents),
+  ].filter(Boolean);
+
+  // Number sequentially: sections start at 2 (Executive Summary is 1)
+  let dynNum = 2;
+  const sectionsBodyHTML = rawSections.map(h => h.replace('__NUM__', dynNum++)).join('');
+  const identitySecNum = dynNum++;
+  const recoSecNum = dynNum;
 
   const html = `<!DOCTYPE html>
 <html><head>
@@ -695,50 +792,12 @@ tr:hover td { background:#fafbff; }
 ${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} assessments, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
 ${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
 
-<!-- ── Section 2: Human Developer Risk ── -->
-${sectionBlock(2,
-  'Human Developer Risk Analysis',
-  'Identify and analyze security risks associated with individual developer activities, behaviors, and access patterns.',
-  'Identify and remediate developers with excessive access, risky behaviors, or indicators of credential compromise',
-  bucketed.human,
-  `<div class="card" style="margin-bottom:14px">
-    <div class="card-title">Identity → Policy → Severity Flow</div>
-    <svg id="sankeyChart" height="320"></svg>
-  </div>
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
-      ${chronics.length ? `<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px">None — no chronic identities found</div>'}
-      ${resolved.length ? `<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>` : ''}
-    </div>
-    <div class="card">
-      <div class="card-title">Top Violations by Volume</div>
-      ${topViolBar||'<div style="color:#aaa;font-size:12px">No data</div>'}
-    </div>
-  </div>`
-)}
+<!-- ── Sections 2+: Dynamic risk sections (Human Dev Risk, Code, IaC, AI Agents — only non-empty rendered) ── -->
+${sectionsBodyHTML}
 
-<!-- ── Section 3: Code & Supply Chain Risk ── -->
-${sectionBlock(3,
-  'Code & Supply Chain Risk',
-  'Assess risks from code vulnerabilities, exposed secrets, and software dependency chains across all repositories.',
-  'Identify and remediate exposed credentials, vulnerable dependencies, and code quality gate bypass patterns',
-  bucketed.code,
-  ''
-)}
-
-<!-- ── Section 4: Infrastructure & Toolchain Posture ── -->
-${sectionBlock(4,
-  'Infrastructure & Toolchain Posture',
-  'Evaluate and strengthen security configurations across infrastructure-as-code and development toolchain.',
-  'Identify and remediate weak infrastructure configurations and unsigned changes to critical build and IaC files',
-  bucketed.toolchain,
-  ''
-)}
-
-<!-- ── Section 5: Identity Detail ── -->
+<!-- ── Identity Detail ── -->
 ${Object.keys(actorPolicyMap).length ? `
-<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Identity Detail</div></div>
+<div class="sec-header"><div class="sec-num">${identitySecNum}</div><div class="sec-name">Identity Detail</div></div>
 <p class="sec-desc">Per-identity breakdown of every violation BlueFlag Security found — showing severity, maximum violation count in a single assessment, and engagement timeline.</p>
 ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sA=Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
@@ -771,9 +830,9 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   </div>`;
 }).join('')}` : ''}
 
-<!-- ── Section 6: Recommendations ── -->
+<!-- ── Recommendations ── -->
 ${recos ? `
-<div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Recommendations</div></div>
+<div class="sec-header"><div class="sec-num">${recoSecNum}</div><div class="sec-name">Recommendations</div></div>
 <p class="sec-desc">Prioritized remediation actions across all finding categories. Each recommendation targets a specific policy violation with action steps and business context.</p>
 <div class="card">${recos}</div>` : ''}
 

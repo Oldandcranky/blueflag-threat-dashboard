@@ -223,6 +223,9 @@ async function scrape(tenant) {
       result.identities = await scrapeIdentities(page, tenant, actorNames, elapsed);
     }
 
+    // Scrape AI Agents tab
+    result.aiAgents = await scrapeAiAgents(page, tenant, elapsed);
+
     return result;
 
   } catch (err) {
@@ -838,6 +841,106 @@ async function scrapeIdentities(page, tenant, actors, elapsed) {
     page.off('request', onReq);
   }
 }
+
+// ── AI Agents Scraper ─────────────────────────────────────────────────────────
+// Navigates to /{tenant}/ai-agents, extracts the agent table. Each row has:
+//   name, type, totalActivity, agentPrimaryCommits, humanPrimaryCommits,
+//   prsOpened, prsApproved, prsCommented, lastActive
+async function scrapeAiAgents(page, tenant, elapsed) {
+  const url = tenant.url.replace(/\/$/, '') + '/ai-agents';
+  const agents = [];
+  try {
+    console.log(`  → [${elapsed()}] [ai-agents] Navigating to ${url}`);
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 });
+    await page.waitForTimeout(2000);
+    console.log(`  → [${elapsed()}] [ai-agents] Page loaded: "${await page.title()}"`);
+
+    // Try to extract table rows from the page DOM
+    const rows = await page.evaluate(() => {
+      const results = [];
+      // Look for table rows — BlueFlag uses Material UI DataGrid or standard tables
+      const tables = document.querySelectorAll('table, [role="grid"], [role="rowgroup"]');
+      for (const table of tables) {
+        const rowEls = table.querySelectorAll('tr, [role="row"]');
+        for (const row of rowEls) {
+          const cells = [...row.querySelectorAll('td, [role="cell"], [role="gridcell"]')];
+          if (cells.length < 3) continue;
+          const texts = cells.map(c => (c.textContent || '').trim().replace(/\s+/g,' '));
+          // Skip header-like rows (all text cells that look like column labels)
+          if (texts[0] && !texts[0].match(/^[\d\-]/)) {
+            results.push(texts);
+          }
+        }
+      }
+      return results;
+    });
+
+    // Parse each row into a structured agent object
+    // Expected column order from the screenshot:
+    //   0: Name | 1: Type | 2: Total Activity | 3: Agent Primary Commits |
+    //   4: Human Primary Commits | 5: PRs Opened | 6: PRs Approved | 7: PRs Commented | 8: Last Active
+    for (const cells of rows) {
+      if (!cells[0] || cells[0].length < 2) continue;
+      const parseNum = (s) => {
+        if (!s) return 0;
+        const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+        return isNaN(n) ? 0 : n;
+      };
+      agents.push({
+        name:                 cells[0] || '',
+        type:                 cells[1] || 'App',
+        totalActivity:        parseNum(cells[2]),
+        agentPrimaryCommits:  parseNum(cells[3]),
+        humanPrimaryCommits:  parseNum(cells[4]),
+        prsOpened:            parseNum(cells[5]),
+        prsApproved:          parseNum(cells[6]),
+        prsCommented:         parseNum(cells[7]),
+        lastActive:           cells[8] || '—',
+      });
+    }
+
+    // Fallback: try intercepting the API response if DOM scraping returned nothing.
+    // BlueFlag often renders tables via its internal API.
+    if (!agents.length) {
+      console.log(`  → [${elapsed()}] [ai-agents] DOM scrape returned 0 rows — trying page text extraction`);
+      const bodyText = await page.evaluate(() => document.body.innerText);
+      // Look for rows that start with known agent names (Claude, Cursor, Copilot, Lovable, Vercel…)
+      const knownAgents = ['claude','cursor','copilot','lovable','vercel','codeium','tabnine','github-copilot','github copilot'];
+      const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const lower = line.toLowerCase();
+        if (knownAgents.some(a => lower.startsWith(a))) {
+          const parts = line.split(/\s{2,}|\t/);
+          if (parts.length >= 2) {
+            const parseNum = (s) => { const n = parseInt(String(s).replace(/[^0-9]/g,''),10); return isNaN(n)?0:n; };
+            agents.push({
+              name:                parts[0]||'',
+              type:                parts[1]||'App',
+              totalActivity:       parseNum(parts[2]),
+              agentPrimaryCommits: parseNum(parts[3]),
+              humanPrimaryCommits: parseNum(parts[4]),
+              prsOpened:           parseNum(parts[5]),
+              prsApproved:         parseNum(parts[6]),
+              prsCommented:        parseNum(parts[7]),
+              lastActive:          parts[8]||'—',
+            });
+          }
+        }
+      }
+    }
+
+    console.log(`  → [${elapsed()}] [ai-agents] Found ${agents.length} agent${agents.length===1?'':'s'}`);
+    if (agents.length) {
+      agents.slice(0,5).forEach(a => console.log(`  → [${elapsed()}] [ai-agents]   ${a.name} (${a.type}) — activity=${a.totalActivity}, agentCommits=${a.agentPrimaryCommits}`));
+    }
+    return agents;
+
+  } catch(e) {
+    console.log(`  → [${elapsed()}] [ai-agents] Scraping failed: ${e.message.split('\n')[0]}`);
+    return agents;
+  }
+}
+
 
 // ── Delta ─────────────────────────────────────────────────────────────────────
 // ── Detailed Delta (stored in snapshot for UI) ────────────────────────────────
