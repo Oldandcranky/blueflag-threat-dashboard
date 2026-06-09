@@ -458,6 +458,7 @@ ${reco?`<div class="remed-box">
         <td style="font-family:monospace;text-align:right;padding:8px 8px;color:#7c3aed">${(a.agentPrimaryCommits||0).toLocaleString()}</td>
         <td style="font-family:monospace;text-align:right;padding:8px 8px;color:#555">${(a.humanPrimaryCommits||0).toLocaleString()}</td>
         <td style="font-family:monospace;text-align:right;padding:8px 8px">${a.prsOpened||0}</td>
+        <td style="font-family:monospace;text-align:right;padding:8px 8px">${a.prsApproved||0}</td>
         <td style="font-family:monospace;text-align:right;padding:8px 8px">${a.prsCommented||0}</td>
         <td style="font-size:11px;color:#888;padding:8px 14px">${a.lastActive||'—'}</td>
       </tr>`;
@@ -478,9 +479,10 @@ ${reco?`<div class="remed-box">
       <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em">Agent Name</th>
       <th style="color:#fff;padding:10px 8px;text-align:center;font-size:11px;font-weight:700">Type</th>
       <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Activity</th>
-      <th style="color:#7c3aed;background:#1e1b4b;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Agent Commits</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Agent Commits</th>
       <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">Human Commits</th>
       <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Opened</th>
+      <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Approved</th>
       <th style="color:#fff;padding:10px 8px;text-align:right;font-size:11px;font-weight:700">PRs Commented</th>
       <th style="color:#fff;padding:10px 14px;text-align:left;font-size:11px;font-weight:700">Last Active</th>
     </tr></thead>
@@ -756,7 +758,10 @@ tr:hover td { background:#fafbff; }
   .pdf-btn { display:none; }
   .page { padding:0; }
   @page { margin:36px 0 20px; }
-  .sec-header, .sec-sub, .sec-desc, .obj-banner { break-after:avoid; page-break-after:avoid; }
+  .cover { break-after:page; page-break-after:always; }
+  .sec-header { break-before:page; page-break-before:always; break-after:avoid; page-break-after:avoid; }
+  .sec-header.no-break { break-before:avoid; page-break-before:avoid; }
+  .sec-sub, .sec-desc, .obj-banner { break-after:avoid; page-break-after:avoid; }
   .card, .key-finding, .implication-box, .remed-box, .vt-card { break-inside:avoid; page-break-inside:avoid; }
 }
 </style>
@@ -787,7 +792,7 @@ tr:hover td { background:#fafbff; }
 <div class="body">
 
 <!-- ── Section 1: Executive Summary ── -->
-<div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
+<div class="sec-header no-break"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
 <p class="sec-desc">High-level findings BlueFlag Security identified in ${tenant.name}'s environment — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
   <div class="kpi-tile accent"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical Findings</div></div>

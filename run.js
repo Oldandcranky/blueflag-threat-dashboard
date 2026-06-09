@@ -896,25 +896,31 @@ async function scrapeAiAgents(page, tenant, elapsed) {
 
     // Parse each row into a structured agent object
     // Expected column order from the screenshot:
-    //   0: Name | 1: Type | 2: Total Activity | 3: Agent Primary Commits |
-    //   4: Human Primary Commits | 5: PRs Opened | 6: PRs Approved | 7: PRs Commented | 8: Last Active
+    // Actual column order (8 cols — Commits is ONE merged cell with both values as text):
+    //   0: Name | 1: Type | 2: Total Activity | 3: Commits (merged "NAgent Primary•MHuman Primary") |
+    //   4: PRs Opened | 5: PRs Approved | 6: PRs Commented | 7: Last Active
     for (const cells of rows) {
       if (!cells[0] || cells[0].length < 2) continue;
       const parseNum = (s) => {
         if (!s) return 0;
-        const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+        const n = parseInt(String(s).replace(/[^0-9,]/g, '').replace(/,/g,''), 10);
         return isNaN(n) ? 0 : n;
       };
+      // The Commits cell contains both agent and human primary values as inline text
+      // e.g. "6Agent Primary" or "0Agent Primary•5,250Human Primary"
+      const commitsCell = cells[3] || '';
+      const agentM = /(\d[\d,]*)\s*Agent\s*Primary/i.exec(commitsCell);
+      const humanM = /(\d[\d,]*)\s*Human\s*Primary/i.exec(commitsCell);
       agents.push({
         name:                 cells[0] || '',
         type:                 cells[1] || 'App',
         totalActivity:        parseNum(cells[2]),
-        agentPrimaryCommits:  parseNum(cells[3]),
-        humanPrimaryCommits:  parseNum(cells[4]),
-        prsOpened:            parseNum(cells[5]),
-        prsApproved:          parseNum(cells[6]),
-        prsCommented:         parseNum(cells[7]),
-        lastActive:           cells[8] || '—',
+        agentPrimaryCommits:  agentM ? parseInt(agentM[1].replace(/,/g,''), 10) : 0,
+        humanPrimaryCommits:  humanM ? parseInt(humanM[1].replace(/,/g,''), 10) : 0,
+        prsOpened:            parseNum(cells[4]),
+        prsApproved:          parseNum(cells[5]),
+        prsCommented:         parseNum(cells[6]),
+        lastActive:           cells[7] || '—',
       });
     }
 
