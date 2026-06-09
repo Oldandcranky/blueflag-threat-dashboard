@@ -361,19 +361,85 @@ app.get('/api/arc/:id', (req, res) => {
   const totalHigh = lastRun.high || 0;
   const totalActors = Object.keys(actorTimeline).length;
 
-  const rowsHTML = runs.map((r,i) => {
-    const prev = runs[i-1];
-    const critDelta = prev ? r.crit - prev.crit : 0;
-    const critStr = critDelta > 0 ? `<span style="color:#e05252">▲${critDelta}</span>` : critDelta < 0 ? `<span style="color:#27ae60">▼${Math.abs(critDelta)}</span>` : '<span style="color:#aaa">—</span>';
-    return `<tr>
-      <td style="font-family:monospace">${r.date}</td>
-      <td><strong style="color:#e05252">${r.crit}</strong></td>
-      <td>${critStr}</td>
-      <td style="color:#e07d22">${r.high}</td>
-      <td>${r.actorCount}</td>
-      <td style="font-size:11px;color:#888;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.actors.slice(0,3).map(a=>a.split(/[-_]/)[0]).join(', ')}${r.actors.length>3?` +${r.actors.length-3} more`:''}</td>
-    </tr>`;
-  }).join('');
+  // ── Policy bucketing ──────────────────────────────────────────────────────────
+  const BUCKET_KEYS = {
+    human:     ['branch protection bypassed','personal access tokens with write',
+                'prs approved by users with no','mismatched committer and author',
+                'identities with multiple risky','suspicious hour of user',
+                'suspicious spike of activity on new','suspicious activity on repository after',
+                'merged pull requests with check run','credential detected in code commit'],
+    code:      ['code scans with critical or high','open source packages with critical',
+                'open source packages with high','open source packages with low',
+                'open source packages with gpl','open source packages with lgpl'],
+    toolchain: ['terraform files with critical or high','unverified commit changes to build',
+                'unverified commit changes to terra'],
+  };
+  function policyBucket(name) {
+    const n = name.toLowerCase();
+    for (const [b, keys] of Object.entries(BUCKET_KEYS)) {
+      if (keys.some(k => n.includes(k))) return b;
+    }
+    return 'other';
+  }
+  function matchRecoByName(name) {
+    return Object.entries(RECO_MAP).find(([k]) =>
+      name.toLowerCase().includes(k.toLowerCase().split(' ').slice(0,5).join(' '))
+    )?.[1] || null;
+  }
+  const bucketed = { human:[], code:[], toolchain:[], other:[] };
+  for (const p of topPolicies) bucketed[policyBucket(p.name)].push(p);
+
+  function violTable(ps) {
+    if (!ps.length) return '<div style="color:#aaa;font-size:12px;padding:12px 14px">No findings in this category for this engagement period.</div>';
+    const cT = ps.filter(p=>p.severity==='Critical').reduce((n,p)=>n+p.totalViolations,0);
+    const hT = ps.filter(p=>p.severity==='High').reduce((n,p)=>n+p.totalViolations,0);
+    const mT = ps.filter(p=>p.severity==='Medium').reduce((n,p)=>n+p.totalViolations,0);
+    return `<table class="viol-table">
+      <thead><tr>
+        <th class="vt-head-policy">Policy Violations</th>
+        <th class="vt-head-crit">Critical</th>
+        <th class="vt-head-high">High</th>
+        <th class="vt-head-med">Medium</th>
+      </tr></thead>
+      <tbody>
+        ${ps.map(p=>`<tr>
+          <td class="vt-policy">${p.name}</td>
+          <td class="vt-num">${p.severity==='Critical'?p.totalViolations.toLocaleString():''}</td>
+          <td class="vt-num" style="color:#7c3aed">${p.severity==='High'?p.totalViolations.toLocaleString():''}</td>
+          <td class="vt-num" style="color:#a16207">${p.severity==='Medium'?p.totalViolations.toLocaleString():''}</td>
+        </tr>`).join('')}
+        <tr class="vt-total">
+          <td>Grand Totals</td>
+          <td>${cT||''}</td><td style="color:#7c3aed">${hT||''}</td><td style="color:#a16207">${mT||''}</td>
+        </tr>
+      </tbody>
+    </table>`;
+  }
+
+  function sectionBlock(num, label, desc, objective, ps, extra) {
+    if (!ps.length) return '';
+    const top = ps[0];
+    const reco = matchRecoByName(top.name);
+    const others = ps.slice(1);
+    return `
+<div class="sec-header"><div class="sec-num">${num}</div><div class="sec-name">${label}</div></div>
+<p class="sec-sub">${desc}</p>
+<div class="card vt-card">${violTable(ps)}</div>
+<div class="obj-banner">Objective: ${objective}</div>
+<div class="key-finding">
+  <div class="key-finding-label">Key Highlight Finding/s:</div>
+  <p>${top.totalViolations.toLocaleString()} ${top.name}${top.actors.length>1?` — affecting ${top.actors.length} identities`:''}</p>
+  ${others.slice(0,2).map(p=>`<p style="margin-top:4px;color:#555;font-size:12px">${p.totalViolations.toLocaleString()} ${p.name}</p>`).join('')}
+</div>
+${extra||''}
+${reco?.implication?`<div class="implication-box"><strong>Implication (Or Why it Matters):</strong> ${reco.implication}</div>`:''}
+${reco?`<div class="remed-box">
+  <div class="remed-title">Suggested Remediation Steps</div>
+  <div class="remed-step"><span class="remed-badge immed">Immediate</span><span>${reco.desc}</span></div>
+  <div class="remed-step"><span class="remed-badge short">Short-term</span><span>${others.length?`Extend remediation to all ${ps.length} findings in this category — ${others.map(p=>p.name).join('; ')}. Assign ownership and SLAs for each.`:'Implement automated controls and establish SLAs to prevent recurrence.'}</span></div>
+  <div class="remed-step"><span class="remed-badge ongoing">Ongoing</span><span>Configure BlueFlag continuous monitoring to surface new violations in this category within 24 hours of detection. Review findings in monthly security stand-ups.</span></div>
+</div>`:''}`;
+  }
 
   // Sankey: Identities → Policies → Severity (from latest snapshot)
   const sankeyData = (() => {
@@ -450,18 +516,16 @@ app.get('/api/arc/:id', (req, res) => {
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f8; color:#1a1a2e; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .page { max-width:1140px; margin:0 auto; padding:0 0 60px; }
 
-/* ── Cover (stays dark) ─────────────────────────────────────────────────── */
-.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:44px 52px 44px; color:#fff; position:relative; overflow:hidden; }
+/* ── Cover ────────────────────────────────────────────────────────────── */
+.cover { background:linear-gradient(150deg,#050e1f 0%,#0d1e3c 55%,#1550FF 100%); padding:44px 52px; color:#fff; position:relative; overflow:hidden; }
 .cover::after { content:''; position:absolute; right:-80px; top:-80px; width:560px; height:560px; background:radial-gradient(circle,rgba(21,80,255,.35) 0%,transparent 70%); pointer-events:none; }
 .cover::before { content:''; position:absolute; left:-40px; bottom:-40px; width:320px; height:320px; background:radial-gradient(circle,rgba(21,80,255,.18) 0%,transparent 70%); pointer-events:none; }
 .cover-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:36px; }
 .cover-logo { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.35); }
 .cover-mid { display:flex; align-items:flex-start; gap:40px; margin-bottom:36px; }
-.cover-title-block { flex:1; }
-.cover-title { font-size:44px; font-weight:800; line-height:1.1; margin-bottom:10px; }
+.cover-title { font-size:44px; font-weight:800; line-height:1.1; margin-bottom:10px; flex:1; }
 .cover-sub { font-size:13px; opacity:.4; font-family:monospace; }
 .cover-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; border-left:1px solid rgba(255,255,255,.15); padding-left:36px; min-width:240px; }
-.cover-meta-item { }
 .cover-meta-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.35); margin-bottom:3px; }
 .cover-meta-val { font-size:13px; font-weight:700; color:#fff; }
 .cover-risk { display:flex; gap:10px; padding-top:20px; border-top:1px solid rgba(255,255,255,.12); }
@@ -469,53 +533,85 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cover-risk-val { font-size:26px; font-weight:800; font-family:monospace; line-height:1; margin-bottom:4px; }
 .cover-risk-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.45); }
 
-/* ── Body (light theme) ─────────────────────────────────────────────────── */
+/* ── Body ─────────────────────────────────────────────────────────────── */
 .body { padding:0 36px; }
 .sec-header { display:flex; align-items:center; gap:12px; margin:28px 0 6px; }
 .sec-num { width:30px; height:30px; border-radius:8px; background:#1550FF; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .sec-name { font-size:18px; font-weight:800; color:#0d1e3c; }
+.sec-sub  { font-size:12px; color:#1550FF; font-weight:500; margin-bottom:14px; line-height:1.55; }
 .sec-desc { font-size:12px; color:#888; margin-bottom:10px; line-height:1.55; }
 
-/* ── Cards ─────────────────────────────────────────────────────────────── */
+/* ── Cards ────────────────────────────────────────────────────────────── */
 .card { background:#fff; border:1px solid #e0e4f0; border-radius:10px; padding:16px 20px; margin-bottom:12px; }
 .card-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
 
-/* ── KPI strip ─────────────────────────────────────────────────────────── */
-.kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+/* ── KPI ──────────────────────────────────────────────────────────────── */
+.kpi-strip { display:grid; gap:10px; margin-bottom:14px; }
 .kpi-tile { background:#fff; border:1px solid #e0e4f0; border-radius:8px; padding:14px 16px; text-align:center; }
 .kpi-tile.accent { border-color:#1550FF; background:#f5f8ff; }
 .kpi-val { font-size:30px; font-weight:800; color:#1550FF; font-family:monospace; line-height:1; margin-bottom:5px; }
-.kpi-val.red { color:#e05252; } .kpi-val.green { color:#27ae60; }
+.kpi-val.red { color:#e05252; }
 .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#aaa; }
 
-/* ── Exec dark (stays dark in light theme) ──────────────────────────────── */
+/* ── Exec dark ────────────────────────────────────────────────────────── */
 .exec-dark { background:linear-gradient(135deg,#0d1e3c,#1a3a6b); border-radius:12px; padding:28px 32px; color:#fff; margin-bottom:16px; }
 .exec-dark-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:rgba(255,255,255,.4); margin-bottom:16px; }
 .exec-dark p { font-size:13px; line-height:1.75; color:rgba(255,255,255,.8); margin-bottom:10px; }
+.exec-dark p:last-child { margin-bottom:0; }
 .exec-dark strong { color:#fff; }
 
-/* ── Layout helpers ────────────────────────────────────────────────────── */
-.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-
-/* ── Callouts ──────────────────────────────────────────────────────────── */
+/* ── Callouts ─────────────────────────────────────────────────────────── */
 .callout { border-radius:8px; padding:14px 16px; margin-bottom:12px; display:flex; gap:12px; align-items:flex-start; }
-.callout.red { background:#fff5f5; border:1px solid #fecaca; }
+.callout.red   { background:#fff5f5; border:1px solid #fecaca; }
 .callout.green { background:#f0fdf4; border:1px solid #bbf7d0; }
 .callout-icon { font-size:18px; flex-shrink:0; }
 .callout-body { font-size:12px; line-height:1.6; color:#444; }
 .callout-body strong { color:#1a1a2e; }
 
-/* ── Severity badges ───────────────────────────────────────────────────── */
+/* ── Severity badges ──────────────────────────────────────────────────── */
 .sev { font-weight:700; font-size:10px; padding:2px 7px; border-radius:4px; display:inline-block; }
 .sev.C { background:#fee2e2; color:#dc2626; }
-.sev.H { background:#ffedd5; color:#c2410c; }
+.sev.H { background:#f3e8ff; color:#7c3aed; }
 .sev.M { background:#fef9c3; color:#a16207; }
-.sev.L { background:#f0fdf4; color:#15803d; }
 .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin:2px; }
-.tag.chronic { background:#ffe8e8; color:#c0392b; }
+.tag.chronic  { background:#ffe8e8; color:#c0392b; }
 .tag.resolved { background:#e8f8ee; color:#27ae60; }
 
-/* ── Tables ────────────────────────────────────────────────────────────── */
+/* ── Violations table ─────────────────────────────────────────────────── */
+.vt-card { padding:0; overflow:hidden; margin-bottom:14px; }
+.viol-table { width:100%; border-collapse:collapse; }
+.vt-head-policy { background:#312e81; color:#fff; padding:10px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+.vt-head-crit { background:#dc2626; color:#fff; padding:10px 8px; text-align:center; font-size:11px; font-weight:700; width:80px; }
+.vt-head-high { background:#7c3aed; color:#fff; padding:10px 8px; text-align:center; font-size:11px; font-weight:700; width:80px; }
+.vt-head-med  { background:#7c3aed; color:#fff; padding:10px 8px; text-align:center; font-size:11px; font-weight:700; width:80px; }
+.vt-policy { padding:8px 14px; font-size:12px; color:#333; border-bottom:1px solid #f0f0f0; }
+.vt-num    { padding:8px 8px; text-align:center; font-weight:700; font-family:monospace; font-size:12px; color:#dc2626; border-bottom:1px solid #f0f0f0; }
+.vt-total td { padding:9px 14px; font-weight:800; font-size:12px; border-top:2px solid #e0e4f0; background:#f8f9ff; }
+
+/* ── Objective banner ─────────────────────────────────────────────────── */
+.obj-banner { background:linear-gradient(135deg,#312e81,#4f46e5); color:#fff; border-radius:8px; padding:14px 18px; font-size:13px; font-weight:600; margin:14px 0; line-height:1.5; }
+
+/* ── Key finding ──────────────────────────────────────────────────────── */
+.key-finding { border:1px solid #e0e4f0; border-radius:8px; padding:14px 18px; margin-bottom:14px; background:#fff; }
+.key-finding-label { font-size:10px; font-weight:700; color:#1550FF; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+.key-finding p { font-size:13px; color:#0d1e3c; font-weight:500; line-height:1.5; }
+
+/* ── Implication ──────────────────────────────────────────────────────── */
+.implication-box { background:#e0f7f4; border-left:4px solid #0d9488; border-radius:0 8px 8px 0; padding:14px 18px; margin:14px 0; font-size:12px; color:#134e4a; line-height:1.7; }
+.implication-box strong { color:#0f4c4c; font-weight:700; }
+
+/* ── Remediation ──────────────────────────────────────────────────────── */
+.remed-box { border:1px solid #e0e4f0; border-radius:8px; padding:16px 18px; margin-bottom:20px; background:#fff; }
+.remed-title { font-size:11px; font-weight:800; color:#0d1e3c; text-transform:uppercase; letter-spacing:.08em; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+.remed-step { display:flex; gap:10px; align-items:flex-start; margin-bottom:9px; font-size:12px; line-height:1.65; color:#444; }
+.remed-step:last-child { margin-bottom:0; }
+.remed-badge { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; padding:3px 8px; border-radius:4px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.remed-badge.immed   { background:#fee2e2; color:#dc2626; }
+.remed-badge.short   { background:#fef3c7; color:#92400e; }
+.remed-badge.ongoing { background:#dbeafe; color:#1d4ed8; }
+
+/* ── Identity detail cards ────────────────────────────────────────────── */
 #sankeyChart { overflow:visible; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
 th { text-align:left; padding:8px 10px; background:#f8f9ff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#999; border-bottom:2px solid #eee; }
@@ -523,7 +619,7 @@ td { padding:8px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; colo
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:#fafbff; }
 
-/* ── Recommendations ───────────────────────────────────────────────────── */
+/* ── Recommendations ──────────────────────────────────────────────────── */
 .rec-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #f0f0f0; }
 .rec-item:last-child { border-bottom:none; }
 .rec-num { width:28px; height:28px; border-radius:7px; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
@@ -532,7 +628,7 @@ tr:hover td { background:#fafbff; }
 .rec-implication { font-size:11px; color:#0f4c4c; background:#e6f7f5; border-left:3px solid #0d9488; padding:6px 9px; border-radius:0 4px 4px 0; margin-top:6px; line-height:1.6; }
 .rec-meta { font-size:10px; color:#aaa; margin-top:5px; font-family:monospace; }
 
-/* ── Charts ────────────────────────────────────────────────────────────── */
+/* ── Charts ───────────────────────────────────────────────────────────── */
 .chart-area-crit { fill:rgba(224,82,82,.1); }
 .chart-area-high { fill:rgba(224,125,34,.07); }
 .chart-line-crit { fill:none; stroke:#e05252; stroke-width:2.5; }
@@ -541,43 +637,37 @@ tr:hover td { background:#fafbff; }
 .axis line, .axis path { stroke:#eee; }
 .grid line { stroke:#f5f5f5; }
 
-/* ── Footer ────────────────────────────────────────────────────────────── */
+/* ── Footer ───────────────────────────────────────────────────────────── */
 .footer-bar { background:#0d1e3c; color:rgba(255,255,255,.4); font-size:10px; padding:16px 44px; display:flex; justify-content:space-between; align-items:center; margin-top:24px; }
 
-/* ── PDF button ─────────────────────────────────────────────────────────── */
+/* ── PDF btn ──────────────────────────────────────────────────────────── */
 .pdf-btn { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); color:#fff; font-family:monospace; font-size:11px; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; text-decoration:none; transition:background .15s; flex-shrink:0; }
 .pdf-btn:hover { background:rgba(255,255,255,.22); }
+
 @media print {
   * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
   .pdf-btn { display:none; }
-  .cover, .exec-dark { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .page { padding:0; }
-  /* Buffer at top/bottom of each page */
-  @page { margin: 36px 0 20px; }
-  /* Keep section header glued to its content */
-  .sec-header { break-after:avoid; page-break-after:avoid; }
-  .sec-desc   { break-after:avoid; page-break-after:avoid; }
-  .card { break-inside:avoid; page-break-inside:avoid; }
-  .trend-section { break-inside:avoid; page-break-inside:avoid; }
+  @page { margin:36px 0 20px; }
+  .sec-header, .sec-sub, .sec-desc, .obj-banner { break-after:avoid; page-break-after:avoid; }
+  .card, .key-finding, .implication-box, .remed-box, .vt-card { break-inside:avoid; page-break-inside:avoid; }
 }
 </style>
 </head><body>
 <div class="page">
 
+<!-- ── Cover ── -->
 <div class="cover">
   <div class="cover-top">
     <div class="cover-logo">BlueFlag Security · Identity Lifecycle Review</div>
     <a href="/api/arc/${req.params.id}/pdf" class="pdf-btn">↓ Download PDF</a>
   </div>
   <div class="cover-mid">
-    <div class="cover-title-block">
-      <div class="cover-title">${tenant.name}<br>Developer Identity<br>Risk Assessment</div>
-      <div class="cover-sub" style="margin-top:14px">${tenant.url}</div>
-    </div>
+    <div class="cover-title">${tenant.name}<br>Developer Identity<br>Risk Assessment<div class="cover-sub" style="margin-top:14px">${tenant.url}</div></div>
     <div class="cover-meta-grid">
-      <div class="cover-meta-item"><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
-      <div class="cover-meta-item"><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
+      <div><div class="cover-meta-label">Organization</div><div class="cover-meta-val">${tenant.name}</div></div>
+      <div><div class="cover-meta-label">Generated</div><div class="cover-meta-val">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div><div class="cover-meta-label">Prepared By</div><div class="cover-meta-val">BlueFlag Security</div></div>
     </div>
   </div>
   <div class="cover-risk">
@@ -589,63 +679,66 @@ tr:hover td { background:#fafbff; }
 
 <div class="body">
 
+<!-- ── Section 1: Executive Summary ── -->
 <div class="sec-header"><div class="sec-num">1</div><div class="sec-name">Executive Summary</div></div>
-<p class="sec-desc">A high-level snapshot of the critical findings BlueFlag Security identified in ${tenant.name}'s environment throughout this engagement — key metrics, severity breakdown, and critical actions required.</p>
+<p class="sec-desc">High-level findings BlueFlag Security identified in ${tenant.name}'s environment — key metrics, severity breakdown, and critical actions required.</p>
 <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
   <div class="kpi-tile accent"><div class="kpi-val red">${lastRun.crit.toLocaleString()}</div><div class="kpi-label">Critical Findings</div></div>
-  <div class="kpi-tile"><div class="kpi-val">${Object.keys(actorTimeline).length}</div><div class="kpi-label">Identities Flagged</div></div>
+  <div class="kpi-tile"><div class="kpi-val">${totalActors}</div><div class="kpi-label">Identities Flagged</div></div>
 </div>
 <div class="exec-dark">
   <div class="exec-dark-title">Executive Summary</div>
-  <p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">Throughout this engagement, BlueFlag Security found critical findings across <strong style="color:#fff">${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
-  ${topThreat ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8);margin-bottom:10px">The highest-priority finding has been <strong style="color:#fff">${topThreat.name}</strong> (${topThreat.severity}), found in <strong style="color:#fff">${topThreat.runs} of ${runs.length} assessments</strong> with <strong style="color:#fff">${topThreat.totalViolations.toLocaleString()} total violations</strong> affecting ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
-  ${chronicCount > 0 ? `<p style="font-size:13px;line-height:1.75;color:rgba(255,255,255,.8)"><strong style="color:#fff">${chronicCount} ${chronicCount===1?'identity has':'identities have'} been flagged in every assessment</strong> — indicating structural risks embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong style="color:#fff">${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement.` : 'No identities have been remediated during this engagement.'}</p>` : ''}
+  <p>Throughout this engagement, BlueFlag Security found critical findings across <strong>${tenant.name}</strong>'s environment. Critical findings have ${critChangeStr} since the engagement began${firstCrit > 0 ? ` (${firstCrit.toLocaleString()} → ${lastRun.crit.toLocaleString()})` : ''}.</p>
+  ${topThreat ? `<p>The highest-priority finding has been <strong>${topThreat.name}</strong> (${topThreat.severity}), present in <strong>${topThreat.runs} of ${runs.length} assessments</strong> with <strong>${topThreat.totalViolations.toLocaleString()} total violations</strong> across ${topThreat.actors.length} ${topThreat.actors.length===1?'identity':'identities'}. This represents a persistent, unresolved exposure that warrants immediate attention.</p>` : ''}
+  ${chronicCount > 0 ? `<p><strong>${chronicCount} ${chronicCount===1?'identity has':'identities have'} appeared in every assessment</strong> — indicating structural risk embedded in the development workflow, not one-off events. ${resolved.length > 0 ? `Positively, <strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement.` : 'No identities have been fully remediated during this engagement period.'}</p>` : ''}
 </div>
-${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> BlueFlag Security found ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} assessments, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
-${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. This demonstrates that BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
+${topPolicies[0] ? `<div class="callout red"><div class="callout-icon">🔴</div><div class="callout-body"><strong>Highest-Priority Finding:</strong> ${topPolicies[0].name} (${topPolicies[0].severity}) — ${topPolicies[0].totalViolations.toLocaleString()} total violations across ${topPolicies[0].runs} of ${runs.length} assessments, affecting ${topPolicies[0].actors.length} ${topPolicies[0].actors.length===1?'identity':'identities'}.</div></div>` : ''}
+${resolved.length ? `<div class="callout green"><div class="callout-icon">✅</div><div class="callout-body"><strong>${resolved.length} ${resolved.length===1?'identity was':'identities were'} resolved</strong> during this engagement: ${resolved.join(', ')}. BlueFlag findings are actionable when teams engage with them promptly.</div></div>` : ''}
 
-<div class="sec-header"><div class="sec-num">2</div><div class="sec-name">Risk Flow — Identities → Policies → Severity</div></div>
-<p class="sec-desc">This diagram maps each identity where BlueFlag Security found violations to the specific policies triggered and the resulting severity distribution. Wider flows indicate higher violation counts.</p>
-<div class="card">
-  <div class="card-title">Identities → Policies → Severity</div>
-  <svg id="sankeyChart" height="320"></svg>
-</div>
-
-<div class="sec-header"><div class="sec-num">3</div><div class="sec-name">Threats Identified</div></div>
-<p class="sec-desc">All findings BlueFlag Security identified during this engagement, aggregated across every assessment. Sorted by severity then total violation volume.</p>
-<div class="two-col">
-  <div class="card">
-    <div class="card-title">Top Violations by Volume</div>
-    ${topViolBar || '<div style="color:#aaa;font-size:12px">No data yet</div>'}
+<!-- ── Section 2: Human Developer Risk ── -->
+${sectionBlock(2,
+  'Human Developer Risk Analysis',
+  'Identify and analyze security risks associated with individual developer activities, behaviors, and access patterns.',
+  'Identify and remediate developers with excessive access, risky behaviors, or indicators of credential compromise',
+  bucketed.human,
+  `<div class="card" style="margin-bottom:14px">
+    <div class="card-title">Identity → Policy → Severity Flow</div>
+    <svg id="sankeyChart" height="320"></svg>
   </div>
-  <div class="card">
-    <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
-    ${chronics.length ? `<div style="margin-bottom:10px">${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px">None — all identities resolved</div>'}
-    ${resolved.length ? `<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>` : ''}
-  </div>
-</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Persistent Identities — Present 70%+ of Assessments</div>
+      ${chronics.length ? `<div>${chronics.map(a=>`<span class="tag chronic">${a}</span>`).join('')}</div>` : '<div style="color:#aaa;font-size:12px">None — no chronic identities found</div>'}
+      ${resolved.length ? `<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:5px">Resolved This Period</div>${resolved.map(a=>`<span class="tag resolved">${a}</span>`).join('')}</div>` : ''}
+    </div>
+    <div class="card">
+      <div class="card-title">Top Violations by Volume</div>
+      ${topViolBar||'<div style="color:#aaa;font-size:12px">No data</div>'}
+    </div>
+  </div>`
+)}
 
-${topPolicies.length ? `
-<div class="card">
-  <div class="card-title">Complete Findings</div>
-  <table>
-    <thead><tr><th>Policy</th><th>Sev</th><th>Violations</th><th>Identities</th><th>Runs</th><th>First</th><th>Last</th></tr></thead>
-    <tbody>${topPolicies.map(p=>{
-      const sc = p.severity==='Critical'?'C':p.severity==='High'?'H':'M';
-      return `<tr>
-        <td style="font-weight:600">${p.name}</td>
-        <td><span class="sev ${sc}">${p.severity}</span></td>
-        <td style="font-family:monospace;font-weight:700">${p.totalViolations.toLocaleString()}</td>
-        <td style="font-size:11px;color:#666">${p.actors.slice(0,3).map(a=>a.split(/[-_@]/)[0]).join(', ')}${p.actors.length>3?` +${p.actors.length-3}`:''}</td>
-        <td style="font-family:monospace">${p.runs}/${runs.length} assessments</td>
-        <td style="font-family:monospace;font-size:10px;color:#aaa">${p.firstSeen}</td>
-        <td style="font-family:monospace;font-size:10px;color:#aaa">${p.lastSeen}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>
-</div>` : ''}
+<!-- ── Section 3: Code & Supply Chain Risk ── -->
+${sectionBlock(3,
+  'Code & Supply Chain Risk',
+  'Assess risks from code vulnerabilities, exposed secrets, and software dependency chains across all repositories.',
+  'Identify and remediate exposed credentials, vulnerable dependencies, and code quality gate bypass patterns',
+  bucketed.code,
+  ''
+)}
 
-<div class="sec-header"><div class="sec-num">4</div><div class="sec-name">Identity Detail</div></div>
+<!-- ── Section 4: Infrastructure & Toolchain Posture ── -->
+${sectionBlock(4,
+  'Infrastructure & Toolchain Posture',
+  'Evaluate and strengthen security configurations across infrastructure-as-code and development toolchain.',
+  'Identify and remediate weak infrastructure configurations and unsigned changes to critical build and IaC files',
+  bucketed.toolchain,
+  ''
+)}
+
+<!-- ── Section 5: Identity Detail ── -->
+${Object.keys(actorPolicyMap).length ? `
+<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Identity Detail</div></div>
 <p class="sec-desc">Per-identity breakdown of every violation BlueFlag Security found — showing severity, maximum violation count in a single assessment, and engagement timeline.</p>
 ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sA=Math.min(...Object.values(a[1]).map(p=>sevOrder[p.severity]||9));
@@ -655,35 +748,34 @@ ${Object.entries(actorPolicyMap).sort((a,b)=>{
   const sorted=Object.entries(policies).sort((a,b)=>(sevOrder[a[1].severity]||9)-(sevOrder[b[1].severity]||9));
   const topSev=sorted[0]?.[1]?.severity||'Medium';
   const sc=topSev==='Critical'?'C':topSev==='High'?'H':'M';
-  const borderC=topSev==='Critical'?'#fca5a5':topSev==='High'?'#fdba74':'#fde68a';
-  const headerBg=topSev==='Critical'?'#fff5f5':topSev==='High'?'#fff7ed':'#fffbeb';
-  const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#e07d22':'#f0b429';
+  const borderC=topSev==='Critical'?'#fca5a5':topSev==='High'?'#c4b5fd':'#fde68a';
+  const headerBg=topSev==='Critical'?'#fff5f5':topSev==='High'?'#f5f3ff':'#fffbeb';
+  const sevC=topSev==='Critical'?'#e05252':topSev==='High'?'#7c3aed':'#f0b429';
   const tl=actorTimeline[actor]||{};
   const totalV=sorted.reduce((n,[,d])=>n+d.maxViolations,0);
   return `<div style="background:#fff;border:1px solid ${borderC};border-top:3px solid ${sevC};border-radius:10px;margin-bottom:14px;overflow:hidden">
     <div style="background:${headerBg};padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start">
       <div>
         <div style="font-family:monospace;font-size:13px;font-weight:700;color:#0d1e3c;word-break:break-all">${actor}</div>
-        <div style="font-size:10px;color:#888;margin-top:3px">First found: ${tl.first||'—'} · Last found: ${tl.last||'—'} · ${tl.count||0}/${runs.length} assessments · ${totalV.toLocaleString()} total violations</div>
+        <div style="font-size:10px;color:#888;margin-top:3px">First: ${tl.first||'—'} · Last: ${tl.last||'—'} · ${tl.count||0}/${runs.length} assessments · ${totalV.toLocaleString()} total violations</div>
       </div>
       <span class="sev ${sc}" style="font-size:11px;padding:4px 12px;flex-shrink:0;margin-left:12px">${topSev}</span>
     </div>
     <div style="padding:0 18px 14px">
-    <table style="margin:0;margin-top:10px"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
-    <tbody>${sorted.map(([p,d])=>{
-      const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
-      return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
-    }).join('')}</tbody></table>
+      <table style="margin:10px 0 0"><thead><tr><th>Policy Violation</th><th>Severity</th><th>Max Violations</th></tr></thead>
+      <tbody>${sorted.map(([p,d])=>{
+        const c2=d.severity==='Critical'?'C':d.severity==='High'?'H':'M';
+        return `<tr><td style="font-weight:500">${p}</td><td><span class="sev ${c2}">${d.severity}</span></td><td style="font-family:monospace;font-weight:700">${d.maxViolations.toLocaleString()}</td></tr>`;
+      }).join('')}</tbody></table>
     </div>
   </div>`;
-}).join('')}
+}).join('')}` : ''}
 
+<!-- ── Section 6: Recommendations ── -->
 ${recos ? `
-<div class="sec-header"><div class="sec-num">5</div><div class="sec-name">Recommendations</div></div>
-<p class="sec-desc">Prioritized remediation actions based on findings BlueFlag Security identified during this engagement. Each recommendation targets a specific policy violation found.</p>
-<div class="card">
-  ${recos}
-</div>` : ''}
+<div class="sec-header"><div class="sec-num">6</div><div class="sec-name">Recommendations</div></div>
+<p class="sec-desc">Prioritized remediation actions across all finding categories. Each recommendation targets a specific policy violation with action steps and business context.</p>
+<div class="card">${recos}</div>` : ''}
 
 </div>
 
@@ -694,35 +786,6 @@ ${recos ? `
 </div>
 
 <script>
-// ── Trend Chart ───────────────────────────────────────────────────────────────
-(function() {
-  const data = ${trendChartData};
-  if (data.length < 2) return;
-  const el = document.getElementById('trendChart');
-  if (!el) return;
-  const W = el.parentElement.clientWidth - 48, H = 180;
-  const pad = { t:10, r:10, b:30, l:48 };
-  const svg = d3.select('#trendChart').attr('width', W).attr('height', H);
-  const w = W - pad.l - pad.r, h = H - pad.t - pad.b;
-  const g = svg.append('g').attr('transform', \`translate(\${pad.l},\${pad.t})\`);
-  const dates = data.map(d => new Date(d.date));
-  const x = d3.scaleTime().domain(d3.extent(dates)).range([0, w]);
-  const maxY = d3.max(data, d => Math.max(d.crit, d.high)) * 1.12 || 10;
-  const y = d3.scaleLinear().domain([0, maxY]).range([h, 0]);
-  g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(4).tickSize(-w).tickFormat(''));
-  const areaCrit = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.crit)).curve(d3.curveMonotoneX);
-  const areaHigh = d3.area().x((_,i)=>x(dates[i])).y0(h).y1(d=>y(d.high)).curve(d3.curveMonotoneX);
-  g.append('path').datum(data).attr('class','chart-area-high').attr('d',areaHigh);
-  g.append('path').datum(data).attr('class','chart-area-crit').attr('d',areaCrit);
-  const lineCrit = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.crit)).curve(d3.curveMonotoneX);
-  const lineHigh = d3.line().x((_,i)=>x(dates[i])).y(d=>y(d.high)).curve(d3.curveMonotoneX);
-  g.append('path').datum(data).attr('class','chart-line-high').attr('d',lineHigh);
-  g.append('path').datum(data).attr('class','chart-line-crit').attr('d',lineCrit);
-  g.append('g').attr('class','axis').attr('transform',\`translate(0,\${h})\`).call(d3.axisBottom(x).ticks(Math.min(data.length,8)).tickFormat(d3.timeFormat('%b %d')));
-  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(',d')));
-})();
-
-// ── Sankey ────────────────────────────────────────────────────────────────────
 (function() {
   const raw = ${sankeyData || 'null'};
   if (!raw || !raw.nodes.length) return;
@@ -734,7 +797,7 @@ ${recos ? `
   let { nodes, links } = sk({ nodes: raw.nodes.map(d=>({...d})), links: raw.links.map(d=>({...d})) });
   const maxX = Math.max(...nodes.map(n=>n.x0));
   const minX = Math.min(...nodes.map(n=>n.x0));
-  const color = n => n.name==='Critical'?'#e05252':n.name==='High'?'#e07d22':n.name==='Medium'?'#f0b429':n.x0===minX?'#1550FF':'#6b7db3';
+  const color = n => n.name==='Critical'?'#e05252':n.name==='High'?'#7c3aed':n.name==='Medium'?'#f0b429':n.x0===minX?'#1550FF':'#6b7db3';
   svg.append('g').selectAll('rect').data(nodes).join('rect')
     .attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(2,d.y1-d.y0))
     .attr('fill',color).attr('rx',3).attr('opacity',.9);
